@@ -1,0 +1,32 @@
+use std::fmt;
+
+#[derive(Debug)]
+pub enum Error {
+    InvalidNumber(String),
+    UnexpectedEOF(usize),
+    UnterminatedString(usize),
+    NoLeftBrace(usize),
+    NoRightBrace(usize),
+    InvalidBool(usize),
+    NotSupportedChar(usize, char),
+    ReferenceNotExist(String),
+    FunctionNotExist(String),
+    NotSupportedOp(String),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidNumber(s) => write!(f, "invalid number: {}", s),
+            Self::UnexpectedEOF(start) => write!(f, "unexpected eof: {}", start),
+            Self::UnterminatedString(start) => write!(f, "unterminated string: {}", start),
+            Self::NoLeftBrace(start) => write!(f, "no left brace: {}", start),
+            Self::NoRightBrace(start) => write!(f, "no right brace: {}", start),
+            Self::InvalidBool(start) => write!(f, "invalid bool: {}", start),
+            Self::NotSupportedChar(start, ch) => write!(f, "not supported char: {}, {}", start, ch),
+            Self::ReferenceNotExist(name) => write!(f, "reference not exist: {}", name),
+            Self::FunctionNotExist(name) => write!(f, "function not exist: {}", name),
+            Self::NotSupportedOp(op) => write!(f, "not supported op: {}", op),
+        }
+    }
+}
