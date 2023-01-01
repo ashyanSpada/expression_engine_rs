@@ -145,9 +145,7 @@ impl <'a> AST<'a> {
         let expr = self.parse_token()?;
         match expr {
             ExprAST::Literal(_) | ExprAST::String(_) | ExprAST::Bool(_) | ExprAST::Function(_, _) | ExprAST::Reference(_) => {
-                println!("before next: {}", self.cur_tok);
                 self.next()?;
-                println!("call next: {}", self.cur_tok);
             },
             _ => {},
         }
@@ -163,7 +161,7 @@ impl <'a> AST<'a> {
     fn parse_binop_rhs(&mut self, exec_prec: i32, mut lhs: ExprAST) -> Result<ExprAST> {
         loop {
             let tok_prec = self.get_token_precidence();
-            println!("pre compare, {}, {}, {}", tok_prec, exec_prec, self.cur_tok);
+            // println!("pre compare, {}, {}, {}", tok_prec, exec_prec, self.cur_tok);
             if tok_prec < exec_prec {
                 return Ok(lhs);
             }
@@ -213,15 +211,15 @@ impl <'a> AST<'a> {
         let mut ans = Vec::new();
         let has_right_brace: bool;
         loop {
+            if self.cur_tok.is_right_brace() {
+                has_right_brace = true;
+                break
+            }
             match self.next()? {
                 // Some(_) => ans.push(self.parse_token()),
                 // Some(Token::Comma(_, _)) => continue,
-                Some(token) => {
-                    if token.is_right_brace() {
-                        has_right_brace = true;
-                        break
-                    }
-                    ans.push(self.parse_token()?);
+                Some(_) => {
+                    ans.push(self.parse_expression()?);
                 },
                 None => {}
             }
@@ -235,7 +233,7 @@ impl <'a> AST<'a> {
 
 #[test]
 fn test() {
-    let input = "$func(1, 2, true, $func(1 2 3))";
+    let input = "$func(1+2+&mm, 2, true, $func(1, 2, 3))";
     let ast = AST::new(input);
     match ast {
         Ok(mut a) => {

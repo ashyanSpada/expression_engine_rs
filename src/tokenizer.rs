@@ -27,7 +27,7 @@ impl <'a> Tokenizer<'a> {
     }
 
     fn peek_one(&mut self) -> Option<(usize,char)> {
-        Some(self.chars.clone().next()?)
+        self.chars.clone().next()
     }
 
     pub fn next(&mut self) -> Result<Option<Token>> {
