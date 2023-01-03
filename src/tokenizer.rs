@@ -4,6 +4,7 @@ use rust_decimal::prelude::*;
 use crate::error::Error;
 use crate::define::Result;
 
+#[derive(Clone)]
 pub struct Tokenizer<'a> {
     input: &'a str,
     chars: str::CharIndices<'a>,
@@ -33,18 +34,29 @@ impl <'a> Tokenizer<'a> {
     pub fn next(&mut self) -> Result<Option<Token>> {
         self.eat_whitespace();
         match self.next_one() {
-            // Some((start, ',')) => Ok(Some(self.comma_token(start)?)),
-            Some((start, '+' | '-' | '*' | '/' | '%' | '(' | ')')) => self.operator_token(start),
+            Some((start, '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=')) => self.operator_token(start),
+            Some((start, '(' | ')')) => self.brace_token(start),
             Some((start, _ch @'0' ..= '9')) => self.literal_token(start),
-            Some((start, '&')) => self.refrence_token(start),
-            Some((start, '$')) => self.function_token(start),
             Some((start, 't')) => self.bool_token(start, true),
             Some((start, 'f')) => self.bool_token(start, false),
             Some((start, '"')) => self.string_token(start),
             Some((start, ',')) => self.comma_token(start),
             None => Ok(None),
-            Some((start, ch)) => Err(Error::NotSupportedChar(start, ch)),
+            Some((start, ch)) => {
+                if is_param_char(ch) {
+                    return self.reference_function_token(start)
+                }
+                Err(Error::NotSupportedChar(start, ch))
+            },
         }
+    }
+
+    fn peek(&mut self) -> Result<Option<Token>> {
+        self.clone().next()
+    }
+
+    fn brace_token(&mut self, start: usize) -> Result<Option<Token>> {
+        Ok(Some(Token::Brace(self.input[start..start+1].to_owned(), Span(start, start+1))))
     }
 
     fn comma_token(&mut self, start: usize) -> Result<Option<Token>> {
@@ -52,23 +64,35 @@ impl <'a> Tokenizer<'a> {
     }
 
     fn operator_token(&mut self, start: usize) -> Result<Option<Token>> {
-        Ok(Some(Token::Operator(self.input[start..start+1].to_owned(), Span(start, start+1))))
+        loop {
+            match self.peek_one() {
+                Some((_, ch)) => {
+                    if is_operator_char(ch) {
+                        self.next_one();
+                    } else {
+                        break
+                    }
+                },
+                None => break,
+            }
+        }
+        Ok(Some(Token::Operator(self.input[start..self.current()].to_owned(), Span(start, self.current()))))
     }
 
     fn literal_token(&mut self, start: usize) -> Result<Option<Token>> {
-        'outer: loop {
+        loop {
             match self.peek_one() {
                 Some((_, ch)) => {
                     if (ch == '+' || ch == '-') && (self.cur_char != 'e' || self.cur_char != 'E') {
-                        break 'outer
+                        break
                     }
                     if is_digit_char(ch) {
                         self.next_one();
                     } else {
-                        break 'outer
+                        break
                     }
                 },
-                None => break 'outer,
+                None => break,
             }
         }
         match rust_decimal::Decimal::from_str(&self.input[start..self.current()]) {
@@ -77,26 +101,7 @@ impl <'a> Tokenizer<'a> {
         }
     }
 
-    fn refrence_token(&mut self, start: usize) -> Result<Option<Token>> {
-        'outer: loop {
-            match self.peek_one() {
-                Some((_, ch)) => {
-                    if is_param_char(ch) {
-                        self.next_one();
-                    } else {
-                        break 'outer
-                    }
-                }
-                None => break 'outer,
-            }
-        }
-        if self.current() - start <= 1 {
-            return Err(Error::UnexpectedEOF(self.current()));
-        }
-        Ok(Some(Token::Reference(self.input[start+1..self.current()].to_owned(), Span(start, self.current()))))
-    }
-
-    fn function_token(&mut self, start: usize) -> Result<Option<Token>> {
+    fn reference_function_token(&mut self, start: usize) -> Result<Option<Token>> {
         loop {
             match self.peek_one() {
                 Some((_, ch)) => {
@@ -109,8 +114,47 @@ impl <'a> Tokenizer<'a> {
                 None => break
             }
         }
-        Ok(Some(Token::Function(self.input[start+1..self.current()].to_owned(), Span(start, self.current()))))
-    }
+        let token = self.peek()?;
+        if token.is_some() && token.unwrap().is_left_brace() {
+            return Ok(Some(Token::Function(self.input[start..self.current()].to_owned(), Span(start, self.current()))))
+        }
+        return Ok(Some(Token::Reference(self.input[start..self.current()].to_owned(), Span(start, self.current()))))
+    } 
+
+    // fn refrence_token(&mut self, start: usize) -> Result<Option<Token>> {
+    //     'outer: loop {
+    //         match self.peek_one() {
+    //             Some((_, ch)) => {
+    //                 if is_param_char(ch) {
+    //                     self.next_one();
+    //                 } else {
+    //                     break 'outer
+    //                 }
+    //             }
+    //             None => break 'outer,
+    //         }
+    //     }
+    //     if self.current() - start <= 1 {
+    //         return Err(Error::UnexpectedEOF(self.current()));
+    //     }
+    //     Ok(Some(Token::Reference(self.input[start+1..self.current()].to_owned(), Span(start, self.current()))))
+    // }
+
+    // fn function_token(&mut self, start: usize) -> Result<Option<Token>> {
+    //     loop {
+    //         match self.peek_one() {
+    //             Some((_, ch)) => {
+    //                 if is_param_char(ch) {
+    //                     self.next_one();
+    //                 } else {
+    //                     break
+    //                 }
+    //             },
+    //             None => break
+    //         }
+    //     }
+    //     Ok(Some(Token::Function(self.input[start+1..self.current()].to_owned(), Span(start, self.current()))))
+    // }
 
     fn string_token(&mut self, start: usize) -> Result<Option<Token>> {
         'outer: loop {
@@ -194,9 +238,16 @@ fn is_param_char(ch: char) -> bool {
         ch == '_'
 }
 
+fn is_operator_char(ch: char) -> bool {
+    match ch {
+        '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' => true,
+        _ => false
+    }
+}
+
 #[test]
 fn test() {
-    let input = "$ROA($test(&mm, \"[1,2,3]\"))";
+    let input = "ROA(est(mm, \"[1,2,3]\", 1 !== 2, 1+2+3*2+6*(5+2)))";
     let mut tokenizer = Tokenizer::new(input);
     loop {
         match tokenizer.next() {

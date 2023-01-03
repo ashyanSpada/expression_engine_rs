@@ -138,6 +138,7 @@ impl <'a> AST<'a> {
             Token::Reference(val, _) => Ok(ExprAST::Reference(val)),
             Token::Function(name, _) => self.parse_function(name),
             Token::Operator(op, _) => self.parse_operator(op),
+            Token::Brace(brace, _) => self.parse_brace(brace),
         }
     }
 
@@ -187,8 +188,8 @@ impl <'a> AST<'a> {
         }
     }
 
-    fn parse_operator(&mut self, op: String) -> Result<ExprAST> {
-        if op == "(" {
+    fn parse_brace(&mut self, brace: String) -> Result<ExprAST> {
+        if brace == "(" {
             self.next()?;
             let expr = self.parse_expression()?;
             if !self.cur_tok.is_right_brace() {
@@ -196,7 +197,12 @@ impl <'a> AST<'a> {
             }
             self.next()?;
             return Ok(expr);
-        } else if op == "-" {
+        }
+        Err(Error::NoLeftBrace(0))
+    }
+
+    fn parse_operator(&mut self, op: String) -> Result<ExprAST> {
+        if op == "-" {
             self.next()?;
             return Ok(ExprAST::BinaryExprAST(op, Box::new(ExprAST::Literal(Decimal::ZERO)), Box::new(self.parse_primary()?)));
         }
@@ -233,7 +239,7 @@ impl <'a> AST<'a> {
 
 #[test]
 fn test() {
-    let input = "$func(1+2+&mm, 2, true, $func(1, 2, 3))";
+    let input = "func(1+2+mm, 2, true, func(1, 2, 3))";
     let ast = AST::new(input);
     match ast {
         Ok(mut a) => {
@@ -248,7 +254,7 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "(1+2)*3+5/2+&mm";
+    let input = "(1+2)*3+5/2+mm";
     let ast = AST::new(input);
     let funcs = HashMap::new();
     let mut vars = HashMap::new();
