@@ -34,15 +34,16 @@ impl <'a> Tokenizer<'a> {
     pub fn next(&mut self) -> Result<Option<Token>> {
         self.eat_whitespace();
         match self.next_one() {
-            Some((start, '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=')) => self.operator_token(start),
+            Some((start, '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|')) => self.operator_token(start),
             Some((start, '(' | ')')) => self.brace_token(start),
             Some((start, _ch @'0' ..= '9')) => self.literal_token(start),
-            Some((start, 't')) => self.bool_token(start, true),
-            Some((start, 'f')) => self.bool_token(start, false),
             Some((start, '"')) => self.string_token(start),
             Some((start, ',')) => self.comma_token(start),
             None => Ok(None),
             Some((start, ch)) => {
+                if (ch == 't' && self.try_parse_ident("rue")) || (ch == 'f' && self.try_parse_ident("alse")) {
+                    return self.bool_token(start, ch == 't')
+                }
                 if is_param_char(ch) {
                     return self.reference_function_token(start)
                 }
@@ -186,6 +187,10 @@ impl <'a> Tokenizer<'a> {
         }
     }
 
+    fn try_parse_ident(&self, expected: &str) -> bool {
+        self.clone().parse_ident(expected)
+    }
+
     fn parse_ident(&mut self, expected: &str) -> bool {
         for (_, expect) in expected.char_indices() {
             match self.next_one() {
@@ -240,14 +245,14 @@ fn is_param_char(ch: char) -> bool {
 
 fn is_operator_char(ch: char) -> bool {
     match ch {
-        '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' => true,
+        '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' => true,
         _ => false
     }
 }
 
 #[test]
 fn test() {
-    let input = "ROA(est(mm, \"[1,2,3]\", 1 !== 2, 1+2+3*2+6*(5+2)))";
+    let input = "(1+2)*3+5/2+mm==23.5";
     let mut tokenizer = Tokenizer::new(input);
     loop {
         match tokenizer.next() {

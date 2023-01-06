@@ -12,6 +12,10 @@ pub enum Error {
     ReferenceNotExist(String),
     FunctionNotExist(String),
     NotSupportedOp(String),
+    BinaryOpNotRegistered(String),
+    UnaryOpNotRegistered(String),
+    ShouldBeNumber(),
+    ShouldBeBool(),
 }
 
 impl fmt::Display for Error {
@@ -27,6 +31,10 @@ impl fmt::Display for Error {
             Self::ReferenceNotExist(name) => write!(f, "reference not exist: {}", name),
             Self::FunctionNotExist(name) => write!(f, "function not exist: {}", name),
             Self::NotSupportedOp(op) => write!(f, "not supported op: {}", op),
+            Self::BinaryOpNotRegistered(op) => write!(f, "binary op not registered: {}", op),
+            Self::UnaryOpNotRegistered(op) => write!(f, "unary op not registered: {}", op),
+            Self::ShouldBeNumber() => write!(f, "should be number"),
+            Self::ShouldBeBool() => write!(f, "should be bool"),
         }
     }
 }

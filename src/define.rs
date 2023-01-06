@@ -6,7 +6,7 @@ use std::fmt;
 
 pub type Result<T> = result::Result<T, Error>;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum Param {
     String(String),
     Literal(Decimal),

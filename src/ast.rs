@@ -5,15 +5,16 @@ use crate::error::Error;
 use crate::tokenizer::Tokenizer;
 use crate::token::Token;
 use crate::define::*;
+use crate::operator::{BinaryOpFuncManager, UnaryOpFuncManager};
 
 
 #[derive(Clone)]
-pub 
-enum ExprAST {
+pub enum ExprAST {
     Literal(Decimal),
     Bool(bool),
     String(String),
     BinaryExprAST(String, Box<ExprAST>, Box<ExprAST>),
+    UnaryExprAST(String, Box<ExprAST>),
     Reference(String),
     Function(String, Vec<ExprAST>)
 }
@@ -24,7 +25,8 @@ impl fmt::Display for ExprAST {
             Self::Literal(val) => write!(f, "Literal AST: {}", val.clone()),
             Self::Bool(val) => write!(f, "Bool AST: {}", val.clone()),
             Self::String(val) => write!(f, "String AST: {}", val.clone()),
-            Self::BinaryExprAST(op, left, right) => write!(f, "Binary AST: Op: {}, Left: {}, Right: {}", op.clone(), left.clone(), right.clone()),
+            Self::BinaryExprAST(op, lhs, rhs) => write!(f, "Binary AST: Op: {}, Lhs: {}, Rhs: {}", op.clone(), lhs.clone(), rhs.clone()),
+            Self::UnaryExprAST(op, rhs) => write!(f, "Unary AST: Op: {}, Rhs: {}", op.clone(), rhs.clone()),
             Self::Reference(name) => write!(f, "Reference AST: reference: {}", name.clone()),
             Self::Function(name, params,) => {
                 let mut s = "[".to_string();
@@ -46,7 +48,8 @@ impl ExprAST {
             ExprAST::String(val) => self.exec_string(val.clone()),
             ExprAST::Reference(name) => self.exec_reference(name, &vars),
             ExprAST::Function(name, exprs) => self.exec_function(name, exprs.clone(), &funcs, &vars),
-            ExprAST::BinaryExprAST(op, lhs, rhs) => self.exec_binary(op.clone(), lhs, rhs, funcs, vars)
+            ExprAST::BinaryExprAST(op, lhs, rhs) => self.exec_binary(op.clone(), lhs, rhs, funcs, vars),
+            ExprAST::UnaryExprAST(op, rhs) => self.exec_unary(op.clone(), rhs, funcs, vars),
         }
     }
 
@@ -83,21 +86,34 @@ impl ExprAST {
     }
 
     fn exec_binary(&self, op: String, lhs: &Box<ExprAST>, rhs: &Box<ExprAST>, funcs: &HashMap<String, Box<dyn InnerFunction>>, vars: &HashMap<String, Param>) -> Result<Param> {
-        let left = match lhs.exec(funcs, vars)? {
-            Param::Literal(val) => val,
-            _ => Decimal::ZERO,
-        };
-        let right = match rhs.exec(funcs, vars)? {
-            Param::Literal(val) => val,
-            _ => Decimal::ZERO,
-        };
-        match op.as_str() {
-            "+" => Ok(Param::Literal(left+right)),
-            "-" => Ok(Param::Literal(left-right)),
-            "*" => Ok(Param::Literal(left*right)),
-            "/" => Ok(Param::Literal(left/right)),
-            "%" => Ok(Param::Literal(left%right)),
-            _ => Err(Error::NotSupportedOp(op))
+        BinaryOpFuncManager::new().get(op)?(lhs.exec(funcs, vars)?, rhs.exec(funcs, vars)?)
+    }
+
+    fn exec_unary(&self, op: String, rhs: &Box<ExprAST>, funcs: &HashMap<String, Box<dyn InnerFunction>>, vars: &HashMap<String, Param>) -> Result<Param> {
+        UnaryOpFuncManager::new().get(op)?(rhs.exec(funcs, vars)?)
+    }
+
+    pub fn expr(&self) -> String {
+        match self {
+            ExprAST::Bool(val) => {
+                if val.clone() {
+                    return "true".to_string();
+                }
+                return "false".to_string();
+            },
+            ExprAST::Literal(val) => val.to_string(),
+            ExprAST::String(val) => val.clone(),
+            ExprAST::Reference(name) => name.clone(),
+            ExprAST::Function(name, exprs) => {
+                let mut params: Vec<String> = Vec::new();
+                for expr in (*exprs.clone()).into_iter() {
+                    params.push(expr.expr())
+                }
+                name.clone()
+    
+            },
+            ExprAST::BinaryExprAST(op, lhs, rhs) => "".to_string(),
+            ExprAST::UnaryExprAST(op, rhs) => "".to_string(),
         }
     }
 }
@@ -179,11 +195,7 @@ impl <'a> AST<'a> {
 
     fn get_token_precidence(&self) -> i32 {
         match &self.cur_tok {
-            Token::Operator(op, _) => match op.as_str() {
-                "+" | "-" => 20,
-                "*" | "/" | "%" => 40,
-                _ => -1,
-            },
+            Token::Operator(op, _) => BinaryOpFuncManager::new().get_precidence(op.clone()),
             _ => -1
         }
     }
@@ -204,7 +216,7 @@ impl <'a> AST<'a> {
     fn parse_operator(&mut self, op: String) -> Result<ExprAST> {
         if op == "-" {
             self.next()?;
-            return Ok(ExprAST::BinaryExprAST(op, Box::new(ExprAST::Literal(Decimal::ZERO)), Box::new(self.parse_primary()?)));
+            return Ok(ExprAST::UnaryExprAST(op, Box::new(self.parse_primary()?)));
         }
         Err(Error::InvalidBool(0))
     }
@@ -254,7 +266,7 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "(1+2)*3+5/2+mm";
+    let input = "(1+2)*3+5/2+mm==23.2";
     let ast = AST::new(input);
     let funcs = HashMap::new();
     let mut vars = HashMap::new();
@@ -262,6 +274,7 @@ fn test_exec() {
     match ast {
         Ok(mut a) => {
             let expr = a.parse_expression().unwrap();
+            println!("expr is {}", expr);
             let ans = expr.exec(&funcs, &vars).unwrap();
             println!("ans is {}", ans);
         },
