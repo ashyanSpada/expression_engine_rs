@@ -14,9 +14,9 @@ pub enum Param {
     // List(Vec<Param>)
 }
 
-pub trait InnerFunction {
-    fn call(&self, param: Vec<Param>) -> Result<Param>;
-}
+// pub trait InnerFunction {
+//     fn call(&self, param: Vec<Param>) -> Result<Param>;
+// }
 
 impl fmt::Display for Param {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

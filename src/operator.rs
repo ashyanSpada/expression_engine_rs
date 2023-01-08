@@ -1,7 +1,7 @@
 use crate::define::{Param, Result};
 use crate::error::Error;
 use std::collections::HashMap;
-use std::sync::{Arc,Mutex};
+use std::sync::Arc;
 
 // static BINARY_OP_FUNC_MANAGER: Mutex<Option<BinaryOpFuncManager>> = Mutex::new(None);
 // static UNARY_OP_FUNC_MANAGER: Mutex<Option<UnaryOpFuncManager>> = Mutex::new(None);
