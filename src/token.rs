@@ -32,6 +32,20 @@ impl Token {
         }
     }
 
+    pub fn is_question_mark(&self) -> bool {
+        match self {
+            Token::Operator(op, _) => op == "?",
+            _ => false,
+        }
+    }
+
+    pub fn is_colon(&self) -> bool {
+        match self {
+            Token::Operator(op, _) => op == ":",
+            _ => false,
+        }
+    }
+
     pub fn string(&self) -> String {
         match self {
             Self::Brace(brace, _) => brace.clone(),

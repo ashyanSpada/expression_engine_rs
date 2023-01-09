@@ -34,7 +34,7 @@ impl <'a> Tokenizer<'a> {
     pub fn next(&mut self) -> Result<Option<Token>> {
         self.eat_whitespace();
         match self.next_one() {
-            Some((start, '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|')) => self.operator_token(start),
+            Some((start, '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':')) => self.operator_token(start),
             Some((start, '(' | ')')) => self.brace_token(start),
             Some((start, _ch @'0' ..= '9')) => self.literal_token(start),
             Some((start, '"')) => self.string_token(start),
@@ -245,14 +245,14 @@ fn is_param_char(ch: char) -> bool {
 
 fn is_operator_char(ch: char) -> bool {
     match ch {
-        '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' => true,
+        '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':' => true,
         _ => false
     }
 }
 
 #[test]
 fn test() {
-    let input = "(1+2)*3+5/2+mm==23.5";
+    let input = "(5 > 3) ? true : false";
     let mut tokenizer = Tokenizer::new(input);
     loop {
         match tokenizer.next() {

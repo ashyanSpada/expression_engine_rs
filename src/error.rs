@@ -17,6 +17,7 @@ pub enum Error {
     InnerFunctionNotRegistered(String),
     ShouldBeNumber(),
     ShouldBeBool(),
+    InvalidTernaryExprNeedColon(),
 }
 
 impl fmt::Display for Error {
@@ -37,6 +38,7 @@ impl fmt::Display for Error {
             Self::InnerFunctionNotRegistered(name) => write!(f, "inner function not registered: {}", name),
             Self::ShouldBeNumber() => write!(f, "should be number"),
             Self::ShouldBeBool() => write!(f, "should be bool"),
+            Self::InvalidTernaryExprNeedColon() => write!(f, "invalid ternary expr needs colon"),
         }
     }
 }

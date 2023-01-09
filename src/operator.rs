@@ -117,13 +117,13 @@ impl BinaryOpFuncManager {
             let a = match left {
                 Param::Bool(a) => a,
                 _ => {
-                    return Err(Error::ShouldBeNumber())
+                    return Err(Error::ShouldBeBool())
                 }
             };
             let b = match right {
                 Param::Bool(b) => b,
                 _ => {
-                    return Err(Error::ShouldBeNumber())
+                    return Err(Error::ShouldBeBool())
                 }
             };
             Ok(Param::Bool(a && b))
@@ -133,13 +133,13 @@ impl BinaryOpFuncManager {
             let a = match left {
                 Param::Bool(a) => a,
                 _ => {
-                    return Err(Error::ShouldBeNumber())
+                    return Err(Error::ShouldBeBool())
                 }
             };
             let b = match right {
                 Param::Bool(b) => b,
                 _ => {
-                    return Err(Error::ShouldBeNumber())
+                    return Err(Error::ShouldBeBool())
                 }
             };
             Ok(Param::Bool(a || b))
@@ -151,6 +151,70 @@ impl BinaryOpFuncManager {
 
         m.insert("!=".to_string(), (20, Arc::new(|left, right| {
             Ok(Param::Bool(left != right))
+        })));
+
+        m.insert(">".to_string(), (80, Arc::new(|left, right| {
+            let a = match left {
+                Param::Literal(a) => a,
+                _ => {
+                    return Err(Error::ShouldBeNumber())
+                }
+            };
+            let b = match right {
+                Param::Literal(b) => b,
+                _ => {
+                    return Err(Error::ShouldBeNumber())
+                }
+            };
+            Ok(Param::Bool(a > b))
+        })));
+
+        m.insert(">=".to_string(), (80, Arc::new(|left, right| {
+            let a = match left {
+                Param::Literal(a) => a,
+                _ => {
+                    return Err(Error::ShouldBeNumber())
+                }
+            };
+            let b = match right {
+                Param::Literal(b) => b,
+                _ => {
+                    return Err(Error::ShouldBeNumber())
+                }
+            };
+            Ok(Param::Bool(a >= b))
+        })));
+
+        m.insert("<".to_string(), (80, Arc::new(|left, right| {
+            let a = match left {
+                Param::Literal(a) => a,
+                _ => {
+                    return Err(Error::ShouldBeNumber())
+                }
+            };
+            let b = match right {
+                Param::Literal(b) => b,
+                _ => {
+                    return Err(Error::ShouldBeNumber())
+                }
+            };
+            Ok(Param::Bool(a < b))
+        })));
+
+        m.insert("<=".to_string(), (80, Arc::new(|left, right| {
+            let a = match left {
+                Param::Literal(a) => a,
+                _ => {
+                    return Err(Error::ShouldBeNumber())
+                }
+            };
+            let b = match right {
+                Param::Literal(b) => b,
+                _ => {
+                    return Err(Error::ShouldBeNumber())
+                }
+            };
+            Ok(Param::Bool(a <= b))
         })));
 
         m
