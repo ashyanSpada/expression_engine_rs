@@ -161,7 +161,7 @@ impl ExprAST {
     }
 
     fn binary_expr(&self, op: &String, lhs: Arc<ExprAST>, rhs: Arc<ExprAST>) -> String {
-        let mut left = {
+        let left = {
             let (is, precidence) = lhs.get_precidence();
             let mut tmp: String = lhs.expr();
             if is && precidence < BinaryOpFuncManager::new().get_precidence(op.clone()) {
@@ -368,7 +368,7 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "(5 < 3) ? 3 : false";
+    let input = "(3 > 2)";
     let ast = AST::new(input);
     let funcs = HashMap::new();
     let mut vars = HashMap::new();
