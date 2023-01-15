@@ -15,6 +15,7 @@ pub enum Token {
     String(String, Span),
     Reference(String, Span),
     Function(String, Span),
+    EOF,
 }
 
 pub fn check_op(token: &Token, expected: &str) -> bool {
@@ -69,6 +70,13 @@ impl Token {
         check_op(self, ":")
     }
 
+    pub fn is_eof(&self) -> bool {
+        match self {
+            Self::EOF => true,
+            _ => false,
+        }
+    }
+
     pub fn string(&self) -> String {
         match self {
             Self::Bracket(bracket, _) => bracket.clone(),
@@ -79,6 +87,7 @@ impl Token {
             Self::String(val, _) => val.clone(),
             Self::Reference(val, _) => val.clone(),
             Self::Function(val, _) => val.clone(),
+            Self::EOF => "EOF".to_string(),
         }
     }
 }
@@ -92,14 +101,15 @@ impl Clone for Span {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Bracket(bracket, _) => write!(f, "bracket token: {}", bracket),
-            Self::Bool(val, _) => write!(f, "bool token: {}", val),
-            Self::Comma(val, _) => write!(f, "comma token: {}", val),
-            Self::Literal(val, _) => write!(f, "literal token: {}", val),
-            Self::Operator(val, _) => write!(f, "operator token: {}", val),
-            Self::Reference(val, _) => write!(f, "reference token: {}", val),
-            Self::Function(val, _) => write!(f, "function token: {}", val),
-            Self::String(val, _) => write!(f, "string token: {}", val)
-        }
+            Self::Bracket(bracket, _) => write!(f, "Bracket Token: {}", bracket),
+            Self::Bool(val, _) => write!(f, "Bool Token: {}", val),
+            Self::Comma(val, _) => write!(f, "Comma Token: {}", val),
+            Self::Literal(val, _) => write!(f, "Literal Token: {}", val),
+            Self::Operator(val, _) => write!(f, "Operator Token: {}", val),
+            Self::Reference(val, _) => write!(f, "Reference Token: {}", val),
+            Self::Function(val, _) => write!(f, "Function Token: {}", val),
+            Self::String(val, _) => write!(f, "String Token: {}", val),
+            Self::EOF => write!(f, "EOF"),
+         }
     }
 }

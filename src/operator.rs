@@ -3,10 +3,6 @@ use crate::error::Error;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-// static BINARY_OP_FUNC_MANAGER: Mutex<Option<BinaryOpFuncManager>> = Mutex::new(None);
-// static UNARY_OP_FUNC_MANAGER: Mutex<Option<UnaryOpFuncManager>> = Mutex::new(None);
-
-
 type BinaryOpFunc = dyn Fn(Param, Param) -> Result<Param> + Send + 'static;
 
 type UnaryOpFunc = dyn Fn(Param) -> Result<Param> + Send + 'static;
@@ -63,6 +59,62 @@ impl BinaryOpFuncManager {
                 }
             };
             Ok(Param::Literal(a - b))
+        })));
+
+        m.insert("in".to_string(), (100, Arc::new(|left, right| {
+            match right {
+                Param::List(params) => {
+                    for target in params {
+                        if target == left {
+                            return Ok(Param::Bool(true));
+                        }
+                    }
+                    return Ok(Param::Bool(false));
+                },
+                Param::Map(params) => {
+                    for (target, _) in params {
+                        if target == left {
+                            return Ok(Param::Bool(true));
+                        }
+                    }
+                    return Ok(Param::Bool(false));
+                },
+                _ => Err(Error::ParamInvalid())
+            }
+        })));
+
+        m.insert("startsWith".to_string(), (120, Arc::new(|left, right| {
+            match left {
+                Param::String(s )=> {
+                    match right {
+                        Param::String(t) => {
+                            if s.starts_with(&t) {
+                                return Ok(Param::Bool(true));
+                            }
+                            return Ok(Param::Bool(false));
+                        },
+                        _ => Err(Error::ShouldBeString()),
+                    }
+                },
+                _ => Err(Error::ShouldBeString())
+            }
+        })));
+
+        m.insert("endsWith".to_string(), (120, Arc::new(|left, right| {
+            match left {
+                Param::String(s )=> {
+                    match right {
+                        Param::String(t) => {
+                            if s.ends_with(&t) {
+                                return Ok(Param::Bool(true));
+                            }
+                            return Ok(Param::Bool(false));
+                        },
+                        _ => Err(Error::ShouldBeString()),
+                    }
+                },
+                _ => Err(Error::ShouldBeString())
+            }
         })));
 
         m.insert("*".to_string(), (80, Arc::new(|left, right| {

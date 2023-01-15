@@ -3,14 +3,15 @@ use crate::token::{Span, Token};
 use rust_decimal::prelude::*;
 use crate::error::Error;
 use crate::define::Result;
+use crate::keyword::{KeywordManager, KeywordType};
 
 #[derive(Clone)]
 pub struct Tokenizer<'a> {
     input: &'a str,
     chars: str::CharIndices<'a>,
     cur_char: char,
-    pub cur_token: Option<Token>,
-    pub prev_token: Option<Token>,
+    pub cur_token: Token,
+    pub prev_token: Token,
 }
 
 impl <'a> Tokenizer<'a> {
@@ -20,8 +21,8 @@ impl <'a> Tokenizer<'a> {
             input: input,
             chars: input.char_indices(),
             cur_char: ' ',
-            cur_token: None,
-            prev_token: None,
+            cur_token: Token::EOF,
+            prev_token: Token::EOF,
         }
     }
 
@@ -35,7 +36,7 @@ impl <'a> Tokenizer<'a> {
         self.chars.clone().next()
     }
 
-    pub fn next(&mut self) -> Result<Option<Token>> {
+    pub fn next(&mut self) -> Result<Token> {
         self.eat_whitespace();
         self.prev_token = self.cur_token.clone();
         self.cur_token = match self.next_one() {
@@ -44,31 +45,30 @@ impl <'a> Tokenizer<'a> {
             Some((start, _ch @'0' ..= '9')) => self.literal_token(start),
             Some((start, '"')) => self.string_token(start),
             Some((start, ',')) => self.comma_token(start),
-            None => Ok(None),
-            Some((start, ch)) => {
-                if (ch == 't' && self.try_parse_ident("rue")) || (ch == 'f' && self.try_parse_ident("alse")) {
-                    return self.bool_token(start, ch == 't');
-                }
-                if is_param_char(ch) {
-                    return self.reference_function_token(start);
-                }
-                Err(Error::NotSupportedChar(start, ch))
-            },
+            None => Ok(Token::EOF),
+            Some((start, ch)) => self.other_token(ch, start),
         }?;
         Ok(self.cur_token.clone())
     }
 
-    pub fn peek(&self) -> Result<Option<Token>> {
+    fn other_token(&mut self, ch: char, start: usize) -> Result<Token> {
+        if (ch == 't' && self.try_parse_ident("rue")) || (ch == 'f' && self.try_parse_ident("alse")) {
+            return self.bool_token(start, ch == 't');
+        }
+        if is_param_char(ch) {
+            return self.op_reference_function_token(start);
+        }
+        Err(Error::NotSupportedChar(start, ch))
+    }
+
+    pub fn peek(&self) -> Result<Token> {
         self.clone().next()
     }
 
     pub fn expect(&mut self, op: String) -> Result<()> {
         let token = self.cur_token.clone();
-        println!("expect: {}, cur: {}", op, self.cur_token.clone().unwrap());
-        if token.is_none() {
-            return Err(Error::ExpectedOpNotExist(op))
-        }
-        match token.unwrap() {
+        println!("expect: {}, cur: {}", op, self.cur_token.clone());
+        match token {
             Token::Bracket(bracket, _) => {
                 if bracket == op {
                     return Ok(());
@@ -91,15 +91,15 @@ impl <'a> Tokenizer<'a> {
         Ok(())
     }
 
-    fn bracket_token(&mut self, start: usize) -> Result<Option<Token>> {
-        Ok(Some(Token::Bracket(self.input[start..start+1].to_owned(), Span(start, start+1))))
+    fn bracket_token(&mut self, start: usize) -> Result<Token> {
+        Ok(Token::Bracket(self.input[start..start+1].to_owned(), Span(start, start+1)))
     }
 
-    fn comma_token(&mut self, start: usize) -> Result<Option<Token>> {
-        Ok(Some(Token::Comma(self.input[start..start+1].to_owned(), Span(start, start+1))))
+    fn comma_token(&mut self, start: usize) -> Result<Token> {
+        Ok(Token::Comma(self.input[start..start+1].to_owned(), Span(start, start+1)))
     }
 
-    fn operator_token(&mut self, start: usize) -> Result<Option<Token>> {
+    fn operator_token(&mut self, start: usize) -> Result<Token> {
         loop {
             match self.peek_one() {
                 Some((_, ch)) => {
@@ -112,10 +112,10 @@ impl <'a> Tokenizer<'a> {
                 None => break,
             }
         }
-        Ok(Some(Token::Operator(self.input[start..self.current()].to_owned(), Span(start, self.current()))))
+        Ok(Token::Operator(self.input[start..self.current()].to_owned(), Span(start, self.current())))
     }
 
-    fn literal_token(&mut self, start: usize) -> Result<Option<Token>> {
+    fn literal_token(&mut self, start: usize) -> Result<Token> {
         loop {
             match self.peek_one() {
                 Some((_, ch)) => {
@@ -132,12 +132,12 @@ impl <'a> Tokenizer<'a> {
             }
         }
         match rust_decimal::Decimal::from_str(&self.input[start..self.current()]) {
-            Ok(val) => Ok(Some(Token::Literal(val, Span(start, self.current())))),
+            Ok(val) => Ok(Token::Literal(val, Span(start, self.current()))),
             Err(_) => Err(Error::InvalidNumber(self.input[start..self.current()].to_string()))
         }
     }
 
-    fn reference_function_token(&mut self, start: usize) -> Result<Option<Token>> {
+    fn op_reference_function_token(&mut self, start: usize) -> Result<Token> {
         loop {
             match self.peek_one() {
                 Some((_, ch)) => {
@@ -150,11 +150,19 @@ impl <'a> Tokenizer<'a> {
                 None => break
             }
         }
-        let token = self.peek()?;
-        if token.is_some() && token.unwrap().is_left_paren() {
-            return Ok(Some(Token::Function(self.input[start..self.current()].to_owned(), Span(start, self.current()))))
+        let name = self.input[start..self.current()].to_string();
+        match KeywordManager::new().get_type(&name) {
+            KeywordType::Function => Ok(Token::Function(name.clone(), Span(start, self.current()))),
+            KeywordType::Op => Ok(Token::Operator(name.clone(), Span(start, self.current()))),
+            KeywordType::Reference => Ok(Token::Reference(name.clone(), Span(start, self.current()))),
+            KeywordType::Unknown => {
+                let token = self.peek()?;
+                if token.is_left_paren() {
+                    return Ok(Token::Function(self.input[start..self.current()].to_owned(), Span(start, self.current())));
+                }
+                return Ok(Token::Reference(self.input[start..self.current()].to_owned(), Span(start, self.current())));
+                }
         }
-        return Ok(Some(Token::Reference(self.input[start..self.current()].to_owned(), Span(start, self.current()))))
     } 
 
     // fn refrence_token(&mut self, start: usize) -> Result<Option<Token>> {
@@ -192,7 +200,7 @@ impl <'a> Tokenizer<'a> {
     //     Ok(Some(Token::Function(self.input[start+1..self.current()].to_owned(), Span(start, self.current()))))
     // }
 
-    fn string_token(&mut self, start: usize) -> Result<Option<Token>> {
+    fn string_token(&mut self, start: usize) -> Result<Token> {
         'outer: loop {
             match self.peek_one() {
                 Some((_, ch)) => {
@@ -211,12 +219,12 @@ impl <'a> Tokenizer<'a> {
             },
             _ => return Err(Error::UnexpectedEOF(self.current()))
         }
-        Ok(Some(Token::String(self.input[start+1..self.current()-1].to_owned(), Span(start, self.current()))))
+        Ok(Token::String(self.input[start+1..self.current()-1].to_owned(), Span(start, self.current())))
     }
 
-    fn bool_token(&mut self, start: usize, val: bool) -> Result<Option<Token>> {
+    fn bool_token(&mut self, start: usize, val: bool) -> Result<Token> {
         if (val && self.parse_ident("rue")) || (!val && self.parse_ident("alse")) {
-            Ok(Some(Token::Bool(val, Span(start, self.current()))))
+            Ok(Token::Bool(val, Span(start, self.current())))
         } else {
             Err(Error::InvalidBool(self.current()))
         }
@@ -287,16 +295,15 @@ fn is_operator_char(ch: char) -> bool {
 
 #[test]
 fn test() {
-    let input = "(5 > 3) [], {}? true : false";
+    let input = "\"abcdsaf\" endsWith \"acd\"";
     let mut tokenizer = Tokenizer::new(input);
     loop {
         match tokenizer.next() {
+            Ok(Token::EOF) => {
+                break
+            },
             Ok(t) => {
-                if t.is_some() {
-                    println!("{}", t.unwrap())
-                } else {
-                    break
-                }
+                // println!("{}", t)
             },
             Err(e) => println!("{}", e)
         }

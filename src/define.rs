@@ -13,7 +13,8 @@ pub enum Param {
     Literal(Decimal),
     Bool(bool),
     List(Vec<Param>),
-    Map(Vec<(Param, Param)>)
+    Map(Vec<(Param, Param)>),
+    None,
 }
 
 // pub trait InnerFunction {
@@ -43,6 +44,7 @@ impl fmt::Display for Param {
                 s.push_str("}");
                 write!(f, "param map: {}", s)
             },
+            Self::None => write!(f, "None"),
         }
     }
 }
