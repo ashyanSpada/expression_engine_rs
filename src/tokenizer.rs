@@ -43,7 +43,7 @@ impl <'a> Tokenizer<'a> {
             Some((start, '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':')) => self.operator_token(start),
             Some((start, '(' | ')' | '[' | ']' | '{' | '}')) => self.bracket_token(start),
             Some((start, _ch @'0' ..= '9')) => self.literal_token(start),
-            Some((start, '"')) => self.string_token(start),
+            Some((start, '"' | '\'')) => self.string_token(start),
             Some((start, ',')) => self.comma_token(start),
             None => Ok(Token::EOF),
             Some((start, ch)) => self.other_token(ch, start),
@@ -201,23 +201,21 @@ impl <'a> Tokenizer<'a> {
     // }
 
     fn string_token(&mut self, start: usize) -> Result<Token> {
-        'outer: loop {
-            match self.peek_one() {
+        let identifier = self.cur_char;
+        let mut string_termmited = false;
+        loop {
+            match self.next_one() {
                 Some((_, ch)) => {
-                    if ch != '"' {
-                        self.next_one();
-                    } else {
-                        break 'outer
+                    if ch == identifier {
+                        string_termmited = true;
+                        break
                     }
-                }
-                None => break 'outer
+                },
+                None => break
             }
         }
-        match self.peek_one() {
-            Some((_, '"')) => {
-                self.next_one();
-            },
-            _ => return Err(Error::UnexpectedEOF(self.current()))
+        if !string_termmited {
+            return Err(Error::UnterminatedString(self.current()))
         }
         Ok(Token::String(self.input[start+1..self.current()-1].to_owned(), Span(start, self.current())))
     }
@@ -295,7 +293,7 @@ fn is_operator_char(ch: char) -> bool {
 
 #[test]
 fn test() {
-    let input = "\"abcdsaf\" endsWith \"acd\"";
+    let input = "\"abcdsaf\" endsWith \'acd\'";
     let mut tokenizer = Tokenizer::new(input);
     loop {
         match tokenizer.next() {
@@ -303,7 +301,7 @@ fn test() {
                 break
             },
             Ok(t) => {
-                // println!("{}", t)
+                println!("{}", t)
             },
             Err(e) => println!("{}", e)
         }
