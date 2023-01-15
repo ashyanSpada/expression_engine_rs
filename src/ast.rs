@@ -10,16 +10,18 @@ use crate::operator::{BinaryOpFuncManager, UnaryOpFuncManager};
 use crate::function::{InnerFunction, InnerFunctionManager};
 
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum ExprAST {
     Literal(Decimal),
     Bool(bool),
     String(String),
-    UnaryExprAST(String, Arc<ExprAST>),
-    BinaryExprAST(String, Arc<ExprAST>, Arc<ExprAST>),
-    TernaryExprAST(Arc<ExprAST>, Arc<ExprAST>, Arc<ExprAST>),
+    Unary(String, Arc<ExprAST>),
+    Binary(String, Arc<ExprAST>, Arc<ExprAST>),
+    Ternary(Arc<ExprAST>, Arc<ExprAST>, Arc<ExprAST>),
     Reference(String),
     Function(String, Vec<ExprAST>),
+    List(Vec<ExprAST>),
+    Map(Vec<(ExprAST, ExprAST)>),
 }
 
 impl fmt::Display for ExprAST {
@@ -28,9 +30,9 @@ impl fmt::Display for ExprAST {
             Self::Literal(val) => write!(f, "Literal AST: {}", val.clone()),
             Self::Bool(val) => write!(f, "Bool AST: {}", val.clone()),
             Self::String(val) => write!(f, "String AST: {}", val.clone()),
-            Self::UnaryExprAST(op, rhs) => write!(f, "Unary AST: Op: {}, Rhs: {}", op.clone(), rhs.clone()),
-            Self::BinaryExprAST(op, lhs, rhs) => write!(f, "Binary AST: Op: {}, Lhs: {}, Rhs: {}", op.clone(), lhs.clone(), rhs.clone()),
-            Self::TernaryExprAST(condition, lhs, rhs) => write!(f, "Ternary AST: Condition: {}, Lhs: {}, Rhs: {}", condition.clone(), lhs.clone(), rhs.clone()),
+            Self::Unary(op, rhs) => write!(f, "Unary AST: Op: {}, Rhs: {}", op.clone(), rhs.clone()),
+            Self::Binary(op, lhs, rhs) => write!(f, "Binary AST: Op: {}, Lhs: {}, Rhs: {}", op.clone(), lhs.clone(), rhs.clone()),
+            Self::Ternary(condition, lhs, rhs) => write!(f, "Ternary AST: Condition: {}, Lhs: {}, Rhs: {}", condition.clone(), lhs.clone(), rhs.clone()),
             Self::Reference(name) => write!(f, "Reference AST: reference: {}", name.clone()),
             Self::Function(name, params,) => {
                 let mut s = "[".to_string();
@@ -39,7 +41,22 @@ impl fmt::Display for ExprAST {
                 }
                 s.push(']');
                 write!(f, "Function AST: name: {}, params: {}", name.clone(), s)
-            }
+            },
+            Self::List(params) => {
+                let mut s = "[".to_string();
+                for param in params.into_iter() {
+                    s.push_str(format!("{},", param.clone()).as_str());
+                }
+                s.push(']');
+                write!(f, "List AST: params: {}", s)
+            },
+            Self::Map(m) => {
+                let mut s = String::new();
+                for (k, v) in m {
+                    s.push_str(format!("({} {}), ", k.clone(), v.clone()).as_str());
+                }
+                write!(f, "MAP AST: {}", s)
+            },
         }
     }
 }
@@ -47,14 +64,16 @@ impl fmt::Display for ExprAST {
 impl ExprAST {
     pub fn exec(&self, funcs: &HashMap<String, Arc<InnerFunction>>, vars: &HashMap<String, Param>) -> Result<Param> {
         match self {
-            ExprAST::Bool(val) => self.exec_bool(val.clone()),
-            ExprAST::Literal(val) => self.exec_literal(val.clone()),
-            ExprAST::String(val) => self.exec_string(val.clone()),
-            ExprAST::Reference(name) => self.exec_reference(name, &vars),
-            ExprAST::Function(name, exprs) => self.exec_function(name, exprs.clone(), &funcs, &vars),
-            ExprAST::UnaryExprAST(op, rhs) => self.exec_unary(op.clone(), rhs.clone(), funcs, vars),
-            ExprAST::BinaryExprAST(op, lhs, rhs) => self.exec_binary(op.clone(), lhs.clone(), rhs.clone(), funcs, vars),
-            ExprAST::TernaryExprAST(condition, lhs, rhs) => self.exec_ternary(condition.clone(), lhs.clone(), rhs.clone(), funcs, vars),
+            Self::Bool(val) => self.exec_bool(val.clone()),
+            Self::Literal(val) => self.exec_literal(val.clone()),
+            Self::String(val) => self.exec_string(val.clone()),
+            Self::Reference(name) => self.exec_reference(name, &vars),
+            Self::Function(name, exprs) => self.exec_function(name, exprs.clone(), &funcs, &vars),
+            Self::Unary(op, rhs) => self.exec_unary(op.clone(), rhs.clone(), funcs, vars),
+            Self::Binary(op, lhs, rhs) => self.exec_binary(op.clone(), lhs.clone(), rhs.clone(), funcs, vars),
+            Self::Ternary(condition, lhs, rhs) => self.exec_ternary(condition.clone(), lhs.clone(), rhs.clone(), funcs, vars),
+            Self::List(params) => self.exec_list(params.clone(), funcs, vars),
+            Self::Map(m) => self.exec_map(m.clone(), funcs, vars),
         }
     }
 
@@ -112,21 +131,39 @@ impl ExprAST {
         }
     }
 
+    fn exec_list(&self, params: Vec<ExprAST>, funcs: &HashMap<String, Arc<InnerFunction>>, vars: &HashMap<String, Param>) -> Result<Param> {
+        let mut ans = Vec::new();
+        for expr in params {
+            ans.push(expr.exec(funcs, vars)?);
+        }
+        Ok(Param::List(ans))
+    }
+
+    fn exec_map(&self, m: Vec<(ExprAST, ExprAST)>, funcs: &HashMap<String, Arc<InnerFunction>>, vars: &HashMap<String, Param>) -> Result<Param> {
+        let mut ans= Vec::new();
+        for (k, v) in m {
+            ans.push((k.exec(funcs, vars)?, v.exec(funcs, vars)?));
+        }
+        Ok(Param::Map(ans))
+    }
+
     pub fn expr(&self) -> String {
         match self {
-            ExprAST::Bool(val) => {
+            Self::Bool(val) => {
                 if val.clone() {
                     return "true".to_string();
                 }
                 return "false".to_string();
             },
-            ExprAST::Literal(val) => self.literal_expr(val.clone()),
-            ExprAST::String(val) => self.string_expr(val.clone()),
-            ExprAST::Reference(name) => self.reference_expr(name.clone()),
-            ExprAST::Function(name, exprs) => self.function_expr(name.clone(), exprs.clone()),
-            ExprAST::UnaryExprAST(op, rhs) => self.unary_expr(op, rhs.clone()),
-            ExprAST::BinaryExprAST(op, lhs, rhs) => self.binary_expr(op, lhs.clone(), rhs.clone()),
-            ExprAST::TernaryExprAST(condition, lhs, rhs) => self.ternary_expr(condition.clone(), lhs.clone(), rhs.clone()),
+            Self::Literal(val) => self.literal_expr(val.clone()),
+            Self::String(val) => self.string_expr(val.clone()),
+            Self::Reference(name) => self.reference_expr(name.clone()),
+            Self::Function(name, exprs) => self.function_expr(name.clone(), exprs.clone()),
+            Self::Unary(op, rhs) => self.unary_expr(op, rhs.clone()),
+            Self::Binary(op, lhs, rhs) => self.binary_expr(op, lhs.clone(), rhs.clone()),
+            Self::Ternary(condition, lhs, rhs) => self.ternary_expr(condition.clone(), lhs.clone(), rhs.clone()),
+            Self::List(params) => self.list_expr(params.clone()),
+            Self::Map(m) => self.map_expr(m.clone()),
         }
     }
 
@@ -182,25 +219,49 @@ impl ExprAST {
 
     fn ternary_expr(&self, condition: Arc<ExprAST>, lhs: Arc<ExprAST>, rhs: Arc<ExprAST>) -> String {
         let condition_expr = match condition.as_ref() {
-            ExprAST::BinaryExprAST(_, _, _) | ExprAST::TernaryExprAST(_, _, _) => "(".to_string() + &condition.expr() + ")",
+            ExprAST::Binary(_, _, _) | ExprAST::Ternary(_, _, _) => "(".to_string() + &condition.expr() + ")",
             _ => condition.expr(),
         };
 
         let left_expr = match lhs.as_ref() {
-            ExprAST::BinaryExprAST(_, _, _) | ExprAST::TernaryExprAST(_, _, _) => "(".to_string() + &lhs.expr() + ")",
+            ExprAST::Binary(_, _, _) | ExprAST::Ternary(_, _, _) => "(".to_string() + &lhs.expr() + ")",
             _ => lhs.expr(),
         };
 
         let right_expr = match rhs.as_ref() {
-            ExprAST::BinaryExprAST(_, _, _) | ExprAST::TernaryExprAST(_, _, _) => "(".to_string() + &rhs.expr() + ")",
+            ExprAST::Binary(_, _, _) | ExprAST::Ternary(_, _, _) => "(".to_string() + &rhs.expr() + ")",
             _ => rhs.expr(),
         };
         condition_expr + " ? " + &left_expr + " : " + &right_expr
     }
 
+    fn list_expr(&self, params: Vec<ExprAST>) -> String {
+        let mut s = String::from("[");
+        for i in 0..params.len() {
+            s.push_str(params[i].expr().as_str());
+            if i < params.len() - 1 {
+                s.push_str(",");
+            }
+        }
+        s.push_str("]");
+        s
+    }
+
+    fn map_expr(&self, m: Vec<(ExprAST, ExprAST)>) -> String {
+        let mut s = String::from("{");
+        for (k, v) in m.into_iter() {
+            s.push_str(k.expr().as_str());
+            s.push_str(":");
+            s.push_str(v.expr().as_str());
+            s.push_str(", ");
+        }
+        s.push_str("}");
+        s
+    }
+
     fn get_precidence(&self) -> (bool, i32) {
         match self {
-            ExprAST::BinaryExprAST(op, _, _) => (true, BinaryOpFuncManager::new().get_precidence(op.clone())),
+            ExprAST::Binary(op, _, _) => (true, BinaryOpFuncManager::new().get_precidence(op.clone())),
             _ => (false, 0),
         }
     }
@@ -229,6 +290,14 @@ impl <'a> AST<'a> {
         Ok(token)
     }
 
+    fn peek(&self) -> Result<Option<Token>> {
+        self.tokenizer.peek()
+    }
+
+    fn expect(&mut self, expected: String) -> Result<()> {
+        self.tokenizer.expect(expected)
+    }
+
     fn parse_token(&mut self) -> Result<ExprAST> {
         let token = self.cur_tok.clone();
         match token {
@@ -242,7 +311,7 @@ impl <'a> AST<'a> {
             Token::Reference(val, _) => Ok(ExprAST::Reference(val)),
             Token::Function(name, _) => self.parse_function(name),
             Token::Operator(op, _) => self.parse_operator(op),
-            Token::Brace(brace, _) => self.parse_brace(brace),
+            Token::Bracket(_, _) => self.parse_bracket(),
         }
     }
 
@@ -253,6 +322,7 @@ impl <'a> AST<'a> {
     }
 
     fn parse_primary(&mut self) -> Result<ExprAST> {
+        println!("curTok primary is {}", self.cur_tok);
         let expr = self.parse_token()?;
         match expr {
             ExprAST::Literal(_) | ExprAST::String(_) | ExprAST::Bool(_) | ExprAST::Function(_, _) | ExprAST::Reference(_) => {
@@ -285,7 +355,7 @@ impl <'a> AST<'a> {
             if tok_prec < next_prec {
                 rhs = self.parse_binop(tok_prec+1, rhs)?;
             }
-            lhs = ExprAST::BinaryExprAST(op, Arc::new(lhs), Arc::new(rhs))
+            lhs = ExprAST::Binary(op, Arc::new(lhs), Arc::new(rhs))
         }
     }
 
@@ -297,7 +367,7 @@ impl <'a> AST<'a> {
         }
         self.next()?;
         let rhs = self.parse_primary()?;
-        Ok(ExprAST::TernaryExprAST(Arc::new(condition), Arc::new(lhs), Arc::new(rhs)))
+        Ok(ExprAST::Ternary(Arc::new(condition), Arc::new(lhs), Arc::new(rhs)))
     }
 
     fn get_token_precidence(&self) -> i32 {
@@ -307,33 +377,86 @@ impl <'a> AST<'a> {
         }
     }
 
-    fn parse_brace(&mut self, brace: String) -> Result<ExprAST> {
-        if brace == "(" {
-            self.next()?;
-            let expr = self.parse_expression()?;
-            if !self.cur_tok.is_right_brace() {
-                return Err(Error::NoLeftBrace(0))
-            }
-            self.next()?;
-            return Ok(expr);
+    fn parse_bracket(&mut self) -> Result<ExprAST> {
+        if self.cur_tok.is_left_paren() {
+            return self.parse_left_paren();
+        } else if self.cur_tok.is_left_bracket() {
+            return self.parse_left_bracket();
+        } else if self.cur_tok.is_left_curly() {
+            return self.parse_left_curly();
         }
         Err(Error::NoLeftBrace(0))
     }
 
+    fn parse_left_paren(&mut self) -> Result<ExprAST> {
+        self.next()?;
+        let expr = self.parse_expression()?;
+        if !self.cur_tok.is_right_paren() {
+            return Err(Error::NoRightBrace(0))
+        }
+        self.next()?;
+        return Ok(expr);
+    }
+
+    fn parse_left_curly(&mut self) -> Result<ExprAST> {
+        let mut m  = Vec::new();
+        self.next()?;
+        loop {
+            let k= self.parse_primary()?;
+            self.expect(":".to_string())?;
+            self.next()?;
+            let v = self.parse_expression()?;
+            m.push((k, v));
+            self.expect(",".to_string())?;
+            self.next()?;
+            match self.peek()? {
+                Some(token) => {
+                    if token.is_right_curly() {
+                        break
+                    }
+                },
+                None => break,
+            }
+        }
+        Ok(ExprAST::Map(m))
+    }
+
+    fn parse_left_bracket(&mut self) -> Result<ExprAST> {
+        let mut exprs = Vec::new();
+        loop {
+            self.next()?;
+            exprs.push(self.parse_expression()?);
+            match self.peek()? {
+                Some(token) => {
+                    if token.is_right_bracket() {
+                        self.next()?;
+                        break
+                    }
+                }
+                None => break,
+            }
+        }
+        if !self.cur_tok.is_right_bracket() {
+            return Err(Error::NoRightBracket(0))
+        }
+        self.next()?;
+        Ok(ExprAST::List(exprs))
+    }
+
     fn parse_operator(&mut self, op: String) -> Result<ExprAST> {
         self.next()?;
-        Ok(ExprAST::UnaryExprAST(op, Arc::new(self.parse_primary()?)))
+        Ok(ExprAST::Unary(op, Arc::new(self.parse_primary()?)))
     }
 
     fn parse_function(&mut self, name : String) -> Result<ExprAST> {
         let next = self.next()?;
-        if next.is_none() || !next.unwrap().is_left_brace() {
+        if next.is_none() || !next.unwrap().is_left_paren() {
             return Err(Error::NoLeftBrace(1))
         }
         let mut ans = Vec::new();
         let has_right_brace: bool;
         loop {
-            if self.cur_tok.is_right_brace() {
+            if self.cur_tok.is_right_paren() {
                 has_right_brace = true;
                 break
             }
@@ -368,7 +491,7 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "(3 > 2)";
+    let input = "[1,2,3,true,{1:3,2:4}]";
     let ast = AST::new(input);
     let funcs = HashMap::new();
     let mut vars = HashMap::new();

@@ -7,7 +7,7 @@ pub struct Span(pub usize, pub usize);
 
 #[derive(Clone)]
 pub enum Token {
-    Brace(String, Span),
+    Bracket(String, Span),
     Operator(String, Span),
     Literal(Decimal, Span),
     Comma(String, Span),
@@ -17,38 +17,61 @@ pub enum Token {
     Function(String, Span),
 }
 
+pub fn check_op(token: &Token, expected: &str) -> bool {
+    match token {
+        Token::Bracket(op, _) => {
+            if op == expected {
+                return true
+            }
+        },
+        Token::Operator(op, _) => {
+            if op == expected {
+                return true
+            }
+        },
+        _ => return false,
+    }
+    return false
+}
+
 impl Token {
-    pub fn is_left_brace(&self) -> bool {
-        match self {
-            Token::Brace(ch, _) => ch == "(",
-            _ => false,
-        }
+    pub fn is_left_paren(&self) -> bool {
+        check_op(self, "(")
     }
 
-    pub fn is_right_brace(&self) -> bool {
-        match self {
-            Token::Brace(ch, _) => ch == ")",
-            _ => false,
-        }
+    pub fn is_right_paren(&self) -> bool {
+        check_op(self, ")")
     }
+
+    pub fn is_left_bracket(&self) -> bool {
+        check_op(self, "[")
+    }
+
+    pub fn is_right_bracket(&self) -> bool {
+        check_op(self, "]")
+    }
+
+    pub fn is_left_curly(&self) -> bool {
+        check_op(self, "{")
+    }
+
+    pub fn is_right_curly(&self) -> bool {
+        check_op(self, "}")
+    }
+
+
 
     pub fn is_question_mark(&self) -> bool {
-        match self {
-            Token::Operator(op, _) => op == "?",
-            _ => false,
-        }
+        check_op(self, "?")
     }
 
     pub fn is_colon(&self) -> bool {
-        match self {
-            Token::Operator(op, _) => op == ":",
-            _ => false,
-        }
+        check_op(self, ":")
     }
 
     pub fn string(&self) -> String {
         match self {
-            Self::Brace(brace, _) => brace.clone(),
+            Self::Bracket(bracket, _) => bracket.clone(),
             Self::Operator(op, _) => op.clone(),
             Self::Literal(val, _) => val.to_string(),
             Self::Comma(val, _) => val.to_string(),
@@ -69,7 +92,7 @@ impl Clone for Span {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Brace(brace, _) => write!(f, "brace token: {}", brace),
+            Self::Bracket(bracket, _) => write!(f, "bracket token: {}", bracket),
             Self::Bool(val, _) => write!(f, "bool token: {}", val),
             Self::Comma(val, _) => write!(f, "comma token: {}", val),
             Self::Literal(val, _) => write!(f, "literal token: {}", val),

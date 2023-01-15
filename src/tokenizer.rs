@@ -8,7 +8,9 @@ use crate::define::Result;
 pub struct Tokenizer<'a> {
     input: &'a str,
     chars: str::CharIndices<'a>,
-    cur_char: char
+    cur_char: char,
+    pub cur_token: Option<Token>,
+    pub prev_token: Option<Token>,
 }
 
 impl <'a> Tokenizer<'a> {
@@ -18,6 +20,8 @@ impl <'a> Tokenizer<'a> {
             input: input,
             chars: input.char_indices(),
             cur_char: ' ',
+            cur_token: None,
+            prev_token: None,
         }
     }
 
@@ -33,31 +37,62 @@ impl <'a> Tokenizer<'a> {
 
     pub fn next(&mut self) -> Result<Option<Token>> {
         self.eat_whitespace();
-        match self.next_one() {
+        self.prev_token = self.cur_token.clone();
+        self.cur_token = match self.next_one() {
             Some((start, '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':')) => self.operator_token(start),
-            Some((start, '(' | ')')) => self.brace_token(start),
+            Some((start, '(' | ')' | '[' | ']' | '{' | '}')) => self.bracket_token(start),
             Some((start, _ch @'0' ..= '9')) => self.literal_token(start),
             Some((start, '"')) => self.string_token(start),
             Some((start, ',')) => self.comma_token(start),
             None => Ok(None),
             Some((start, ch)) => {
                 if (ch == 't' && self.try_parse_ident("rue")) || (ch == 'f' && self.try_parse_ident("alse")) {
-                    return self.bool_token(start, ch == 't')
+                    return self.bool_token(start, ch == 't');
                 }
                 if is_param_char(ch) {
-                    return self.reference_function_token(start)
+                    return self.reference_function_token(start);
                 }
                 Err(Error::NotSupportedChar(start, ch))
             },
-        }
+        }?;
+        Ok(self.cur_token.clone())
     }
 
-    fn peek(&mut self) -> Result<Option<Token>> {
+    pub fn peek(&self) -> Result<Option<Token>> {
         self.clone().next()
     }
 
-    fn brace_token(&mut self, start: usize) -> Result<Option<Token>> {
-        Ok(Some(Token::Brace(self.input[start..start+1].to_owned(), Span(start, start+1))))
+    pub fn expect(&mut self, op: String) -> Result<()> {
+        let token = self.cur_token.clone();
+        println!("expect: {}, cur: {}", op, self.cur_token.clone().unwrap());
+        if token.is_none() {
+            return Err(Error::ExpectedOpNotExist(op))
+        }
+        match token.unwrap() {
+            Token::Bracket(bracket, _) => {
+                if bracket == op {
+                    return Ok(());
+                }
+            },
+            Token::Operator(operator , _) => {
+                if operator == op {
+                    return Ok(());
+                }
+            },
+            Token::Comma(c, _) => {
+                if c == op {
+                    return Ok(());
+                }
+            },
+            _ => {
+                return Err(Error::ExpectedOpNotExist(op));
+            }
+        }
+        Ok(())
+    }
+
+    fn bracket_token(&mut self, start: usize) -> Result<Option<Token>> {
+        Ok(Some(Token::Bracket(self.input[start..start+1].to_owned(), Span(start, start+1))))
     }
 
     fn comma_token(&mut self, start: usize) -> Result<Option<Token>> {
@@ -116,7 +151,7 @@ impl <'a> Tokenizer<'a> {
             }
         }
         let token = self.peek()?;
-        if token.is_some() && token.unwrap().is_left_brace() {
+        if token.is_some() && token.unwrap().is_left_paren() {
             return Ok(Some(Token::Function(self.input[start..self.current()].to_owned(), Span(start, self.current()))))
         }
         return Ok(Some(Token::Reference(self.input[start..self.current()].to_owned(), Span(start, self.current()))))
@@ -252,7 +287,7 @@ fn is_operator_char(ch: char) -> bool {
 
 #[test]
 fn test() {
-    let input = "(5 > 3) ? true : false";
+    let input = "(5 > 3) [], {}? true : false";
     let mut tokenizer = Tokenizer::new(input);
     loop {
         match tokenizer.next() {

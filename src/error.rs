@@ -7,6 +7,10 @@ pub enum Error {
     UnterminatedString(usize),
     NoLeftBrace(usize),
     NoRightBrace(usize),
+    NoLeftBracket(usize),
+    NoRightBracket(usize),
+    NoLeftCurly(usize),
+    NoRightCurly(usize),
     InvalidBool(usize),
     NotSupportedChar(usize, char),
     ReferenceNotExist(String),
@@ -18,6 +22,7 @@ pub enum Error {
     ShouldBeNumber(),
     ShouldBeBool(),
     InvalidTernaryExprNeedColon(),
+    ExpectedOpNotExist(String),
 }
 
 impl fmt::Display for Error {
@@ -28,6 +33,10 @@ impl fmt::Display for Error {
             Self::UnterminatedString(start) => write!(f, "unterminated string: {}", start),
             Self::NoLeftBrace(start) => write!(f, "no left brace: {}", start),
             Self::NoRightBrace(start) => write!(f, "no right brace: {}", start),
+            Self::NoLeftBracket(start) => write!(f, "no left brace: {}", start),
+            Self::NoRightBracket(start) => write!(f, "no right brace: {}", start),
+            Self::NoLeftCurly(start) => write!(f, "no left brace: {}", start),
+            Self::NoRightCurly(start) => write!(f, "no right brace: {}", start),
             Self::InvalidBool(start) => write!(f, "invalid bool: {}", start),
             Self::NotSupportedChar(start, ch) => write!(f, "not supported char: {}, {}", start, ch),
             Self::ReferenceNotExist(name) => write!(f, "reference not exist: {}", name),
@@ -39,6 +48,7 @@ impl fmt::Display for Error {
             Self::ShouldBeNumber() => write!(f, "should be number"),
             Self::ShouldBeBool() => write!(f, "should be bool"),
             Self::InvalidTernaryExprNeedColon() => write!(f, "invalid ternary expr needs colon"),
+            Self::ExpectedOpNotExist(op) => write!(f, "expected op:{} not exist", op.clone()),
         }
     }
 }
