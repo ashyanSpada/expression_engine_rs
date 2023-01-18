@@ -1,7 +1,6 @@
-use rust_decimal::Decimal;
 use core::clone::Clone;
+use rust_decimal::Decimal;
 use std::fmt;
-
 
 pub struct Span(pub usize, pub usize);
 
@@ -22,17 +21,17 @@ pub fn check_op(token: &Token, expected: &str) -> bool {
     match token {
         Token::Bracket(op, _) => {
             if op == expected {
-                return true
+                return true;
             }
-        },
+        }
         Token::Operator(op, _) => {
             if op == expected {
-                return true
+                return true;
             }
-        },
+        }
         _ => return false,
     }
-    return false
+    return false;
 }
 
 impl Token {
@@ -59,8 +58,6 @@ impl Token {
     pub fn is_right_curly(&self) -> bool {
         check_op(self, "}")
     }
-
-
 
     pub fn is_question_mark(&self) -> bool {
         check_op(self, "?")
@@ -94,7 +91,7 @@ impl Token {
 
 impl Clone for Span {
     fn clone(&self) -> Self {
-        return Self(self.0.clone(), self.1.clone())
+        return Self(self.0.clone(), self.1.clone());
     }
 }
 
@@ -110,6 +107,6 @@ impl fmt::Display for Token {
             Self::Function(val, _) => write!(f, "Function Token: {}", val),
             Self::String(val, _) => write!(f, "String Token: {}", val),
             Self::EOF => write!(f, "EOF"),
-         }
+        }
     }
 }

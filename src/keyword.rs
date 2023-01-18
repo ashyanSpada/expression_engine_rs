@@ -8,9 +8,8 @@ pub enum KeywordType {
     Op,
 }
 
-
 pub struct KeywordManager {
-    store: HashMap<String, KeywordType>
+    store: HashMap<String, KeywordType>,
 }
 
 impl KeywordManager {
@@ -19,9 +18,11 @@ impl KeywordManager {
         unsafe {
             match &KEYWORD_MANAGER {
                 Some(m) => m.clone(),
-                None => {
-                    KEYWORD_MANAGER.get_or_insert(Arc::new(KeywordManager{store: Self::internal_register(HashMap::new())})).clone()
-                }
+                None => KEYWORD_MANAGER
+                    .get_or_insert(Arc::new(KeywordManager {
+                        store: Self::internal_register(HashMap::new()),
+                    }))
+                    .clone(),
             }
         }
     }
@@ -35,8 +36,8 @@ impl KeywordManager {
     }
 
     fn internal_register(mut m: HashMap<String, KeywordType>) -> HashMap<String, KeywordType> {
-        m.insert("startsWith".to_string(), KeywordType::Op);
-        m.insert("endsWith".to_string(), KeywordType::Op);
+        m.insert("beginWith".to_string(), KeywordType::Op);
+        m.insert("endWith".to_string(), KeywordType::Op);
         m.insert("in".to_string(), KeywordType::Op);
         m
     }

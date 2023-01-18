@@ -46,7 +46,9 @@ impl fmt::Display for Error {
             Self::NotSupportedOp(op) => write!(f, "not supported op: {}", op),
             Self::BinaryOpNotRegistered(op) => write!(f, "binary op not registered: {}", op),
             Self::UnaryOpNotRegistered(op) => write!(f, "unary op not registered: {}", op),
-            Self::InnerFunctionNotRegistered(name) => write!(f, "inner function not registered: {}", name),
+            Self::InnerFunctionNotRegistered(name) => {
+                write!(f, "inner function not registered: {}", name)
+            }
             Self::ShouldBeNumber() => write!(f, "should be number"),
             Self::ShouldBeBool() => write!(f, "should be bool"),
             Self::InvalidTernaryExprNeedColon() => write!(f, "invalid ternary expr needs colon"),

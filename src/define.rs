@@ -1,9 +1,9 @@
-use rust_decimal::Decimal;
-use core::result;
 use crate::error::Error;
 use core::clone::Clone;
-use std::fmt;
 use core::hash::Hash;
+use core::result;
+use rust_decimal::Decimal;
+use std::fmt;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -34,7 +34,7 @@ impl fmt::Display for Param {
                 }
                 s.push_str("]");
                 write!(f, "param list: {}", s)
-            },
+            }
             Self::Map(m) => {
                 let mut s = String::from("{");
                 for (k, v) in m {
@@ -43,7 +43,7 @@ impl fmt::Display for Param {
                 }
                 s.push_str("}");
                 write!(f, "param map: {}", s)
-            },
+            }
             Self::None => write!(f, "None"),
         }
     }
