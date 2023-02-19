@@ -25,6 +25,7 @@ pub enum Error {
     ShouldBeString(),
     InvalidTernaryExprNeedColon(),
     ExpectedOpNotExist(String),
+    WrongContextValueType(),
 }
 
 impl fmt::Display for Error {
@@ -55,6 +56,7 @@ impl fmt::Display for Error {
             Self::ExpectedOpNotExist(op) => write!(f, "expected op:{} not exist", op.clone()),
             Self::ParamInvalid() => write!(f, "param invalid"),
             Self::ShouldBeString() => write!(f, "should be string"),
+            Self::WrongContextValueType() => write!(f, "wrong context value type"),
         }
     }
 }

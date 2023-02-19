@@ -1,11 +1,10 @@
 use crate::define::*;
 use crate::error::Error;
-use crate::function::{InnerFunction, InnerFunctionManager};
+use crate::function::InnerFunctionManager;
 use crate::operator::{BinaryOpFuncManager, UnaryOpFuncManager};
 use crate::token::Token;
 use crate::tokenizer::Tokenizer;
 use rust_decimal::prelude::*;
-use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
@@ -77,26 +76,22 @@ impl fmt::Display for ExprAST {
 }
 
 impl ExprAST {
-    pub fn exec(
-        &self,
-        funcs: &HashMap<String, Arc<InnerFunction>>,
-        vars: &HashMap<String, Param>,
-    ) -> Result<Param> {
+    pub fn exec(&self, ctx: Arc<Context>) -> Result<Param> {
         match self {
             Self::Bool(val) => self.exec_bool(val.clone()),
             Self::Literal(val) => self.exec_literal(val.clone()),
             Self::String(val) => self.exec_string(val.clone()),
-            Self::Reference(name) => self.exec_reference(name, &vars),
-            Self::Function(name, exprs) => self.exec_function(name, exprs.clone(), &funcs, &vars),
-            Self::Unary(op, rhs) => self.exec_unary(op.clone(), rhs.clone(), funcs, vars),
+            Self::Reference(name) => self.exec_reference(name, ctx.clone()),
+            Self::Function(name, exprs) => self.exec_function(name, exprs.clone(), ctx.clone()),
+            Self::Unary(op, rhs) => self.exec_unary(op.clone(), rhs.clone(), ctx.clone()),
             Self::Binary(op, lhs, rhs) => {
-                self.exec_binary(op.clone(), lhs.clone(), rhs.clone(), funcs, vars)
+                self.exec_binary(op.clone(), lhs.clone(), rhs.clone(), ctx.clone())
             }
             Self::Ternary(condition, lhs, rhs) => {
-                self.exec_ternary(condition.clone(), lhs.clone(), rhs.clone(), funcs, vars)
+                self.exec_ternary(condition.clone(), lhs.clone(), rhs.clone(), ctx.clone())
             }
-            Self::List(params) => self.exec_list(params.clone(), funcs, vars),
-            Self::Map(m) => self.exec_map(m.clone(), funcs, vars),
+            Self::List(params) => self.exec_list(params.clone(), ctx.clone()),
+            Self::Map(m) => self.exec_map(m.clone(), ctx.clone()),
             Self::None => Ok(Param::None),
         }
     }
@@ -113,42 +108,35 @@ impl ExprAST {
         Ok(Param::String(val))
     }
 
-    fn exec_reference(&self, name: &String, vars: &HashMap<String, Param>) -> Result<Param> {
-        if vars.get(name).is_none() {
-            return Err(Error::ReferenceNotExist(name.clone()));
+    fn exec_reference(&self, name: &String, ctx: Arc<Context>) -> Result<Param> {
+        match ctx.get_variable(name) {
+            Some(value) => Ok(value),
+            None => Err(Error::WrongContextValueType()),
         }
-        let v = vars.get(name).unwrap();
-        Ok(v.clone())
     }
 
     fn exec_function(
         &self,
         name: &String,
         exprs: Vec<ExprAST>,
-        funcs: &HashMap<String, Arc<InnerFunction>>,
-        vars: &HashMap<String, Param>,
+        ctx: Arc<Context>,
     ) -> Result<Param> {
         let mut params: Vec<Param> = Vec::new();
         for expr in exprs.into_iter() {
-            params.push(expr.exec(funcs, vars)?)
+            params.push(expr.exec(ctx.clone())?)
         }
-        let func = funcs.get(name);
-        if func.is_some() {
-            return func.unwrap().clone()(params);
+        match ctx.get_func(name) {
+            Some(func) => func(params),
+            None => self.redirect_inner_function(name, params),
         }
-        let m = InnerFunctionManager::new();
-        println!("expty check: {}", m.store.is_empty());
-        m.get(name.clone())?(params)
     }
 
-    fn exec_unary(
-        &self,
-        op: String,
-        rhs: Arc<ExprAST>,
-        funcs: &HashMap<String, Arc<InnerFunction>>,
-        vars: &HashMap<String, Param>,
-    ) -> Result<Param> {
-        UnaryOpFuncManager::new().get(op)?(rhs.exec(funcs, vars)?)
+    fn redirect_inner_function(&self, name: &String, params: Vec<Param>) -> Result<Param> {
+        InnerFunctionManager::new().get(name.clone())?(params)
+    }
+
+    fn exec_unary(&self, op: String, rhs: Arc<ExprAST>, ctx: Arc<Context>) -> Result<Param> {
+        UnaryOpFuncManager::new().get(op)?(rhs.exec(ctx)?)
     }
 
     fn exec_binary(
@@ -156,10 +144,9 @@ impl ExprAST {
         op: String,
         lhs: Arc<ExprAST>,
         rhs: Arc<ExprAST>,
-        funcs: &HashMap<String, Arc<InnerFunction>>,
-        vars: &HashMap<String, Param>,
+        ctx: Arc<Context>,
     ) -> Result<Param> {
-        BinaryOpFuncManager::new().get(op)?(lhs.exec(funcs, vars)?, rhs.exec(funcs, vars)?)
+        BinaryOpFuncManager::new().get(op)?(lhs.exec(ctx.clone())?, rhs.exec(ctx.clone())?)
     }
 
     fn exec_ternary(
@@ -167,42 +154,31 @@ impl ExprAST {
         condition: Arc<ExprAST>,
         lhs: Arc<ExprAST>,
         rhs: Arc<ExprAST>,
-        funcs: &HashMap<String, Arc<InnerFunction>>,
-        vars: &HashMap<String, Param>,
+        ctx: Arc<Context>,
     ) -> Result<Param> {
-        match condition.exec(funcs, vars)? {
+        match condition.exec(ctx.clone())? {
             Param::Bool(val) => {
                 if val {
-                    return lhs.exec(funcs, vars);
+                    return lhs.exec(ctx.clone());
                 }
-                rhs.exec(funcs, vars)
+                rhs.exec(ctx.clone())
             }
             _ => Err(Error::ShouldBeBool()),
         }
     }
 
-    fn exec_list(
-        &self,
-        params: Vec<ExprAST>,
-        funcs: &HashMap<String, Arc<InnerFunction>>,
-        vars: &HashMap<String, Param>,
-    ) -> Result<Param> {
+    fn exec_list(&self, params: Vec<ExprAST>, ctx: Arc<Context>) -> Result<Param> {
         let mut ans = Vec::new();
         for expr in params {
-            ans.push(expr.exec(funcs, vars)?);
+            ans.push(expr.exec(ctx.clone())?);
         }
         Ok(Param::List(ans))
     }
 
-    fn exec_map(
-        &self,
-        m: Vec<(ExprAST, ExprAST)>,
-        funcs: &HashMap<String, Arc<InnerFunction>>,
-        vars: &HashMap<String, Param>,
-    ) -> Result<Param> {
+    fn exec_map(&self, m: Vec<(ExprAST, ExprAST)>, ctx: Arc<Context>) -> Result<Param> {
         let mut ans = Vec::new();
         for (k, v) in m {
-            ans.push((k.exec(funcs, vars)?, v.exec(funcs, vars)?));
+            ans.push((k.exec(ctx.clone())?, v.exec(ctx.clone())?));
         }
         Ok(Param::Map(ans))
     }
@@ -396,7 +372,7 @@ impl<'a> AST<'a> {
         }
     }
 
-    fn parse_expression(&mut self) -> Result<ExprAST> {
+    pub fn parse_expression(&mut self) -> Result<ExprAST> {
         let lhs = self.parse_primary()?;
         // println!("parse expression curTok: {}", self.cur_tok());
         if self.cur_tok().is_eof() {
@@ -572,17 +548,16 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "\"abcdsaf\" endsWith \"acd\"";
+    let input = "\"abcdsaf\" endWith \"acd\"";
     let ast = AST::new(input);
-    let funcs = HashMap::new();
-    let mut vars = HashMap::new();
-    vars.insert("mm".to_string(), Param::Literal(Decimal::new(12, 0)));
+    let mut ctx = Context::new();
+    ctx.set_variable(&"mm".to_string(), Param::Literal(Decimal::new(12, 0)));
     match ast {
         Ok(mut a) => {
             let expr = a.parse_expression().unwrap();
             println!("expr is {}", expr);
             println!("string is {}", expr.expr());
-            let ans = expr.exec(&funcs, &vars).unwrap();
+            let ans = expr.exec(Arc::new(ctx)).unwrap();
             println!("ans is {}", ans);
         }
         Err(e) => {
