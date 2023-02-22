@@ -101,7 +101,7 @@ impl ExprAST {
     }
 
     fn exec_literal(&self, val: Decimal) -> Result<Param> {
-        Ok(Param::Literal(val))
+        Ok(Param::Number(val))
     }
 
     fn exec_string(&self, val: String) -> Result<Param> {
@@ -551,7 +551,7 @@ fn test_exec() {
     let input = "\"abcdsaf\" endWith \"acd\"";
     let ast = AST::new(input);
     let mut ctx = Context::new();
-    ctx.set_variable(&"mm".to_string(), Param::Literal(Decimal::new(12, 0)));
+    ctx.set_variable(&"mm".to_string(), Param::Number(Decimal::new(12, 0)));
     match ast {
         Ok(mut a) => {
             let expr = a.parse_expression().unwrap();

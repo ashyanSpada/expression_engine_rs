@@ -13,7 +13,7 @@ pub type Result<T> = result::Result<T, Error>;
 #[derive(Clone, Hash, PartialEq)]
 pub enum Param {
     String(String),
-    Literal(Decimal),
+    Number(Decimal),
     Bool(bool),
     List(Vec<Param>),
     Map(Vec<(Param, Param)>),
@@ -24,7 +24,7 @@ impl fmt::Display for Param {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::String(val) => write!(f, "param string: {}", val.clone()),
-            Self::Literal(val) => write!(f, "param literal: {}", val.clone()),
+            Self::Number(val) => write!(f, "param literal: {}", val.clone()),
             Self::Bool(val) => write!(f, "param bool: {}", val.clone()),
             Self::List(params) => {
                 let mut s = String::from("[");

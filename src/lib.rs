@@ -21,7 +21,7 @@ pub type Param = define::Param;
 fn test_exec() {
     let input = "(3+4)*5+mm*2";
     let mut ctx = Context::new();
-    ctx.set_variable(&String::from("mm"), Param::Literal(Decimal::new(2, 1)));
+    ctx.set_variable(&String::from("mm"), Param::Number(Decimal::new(2, 1)));
     match execute(input, ctx) {
         Err(e) => println!("{}", e),
         Ok(param) => println!("ans is {}", param),

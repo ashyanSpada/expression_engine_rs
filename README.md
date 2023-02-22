@@ -11,8 +11,8 @@ Expression executor aims to provide an engine for users that can execute complex
 Calling the engine is simple. At first, define the expression you want to execute. Secondly, create a context. And then, register the variables and functions to the context. Finally, call the execute function with  the expression and context to get the executing result.
 
 ```rust
-let input = "(3+4)*5+mm*2";
-let mut ctx = Context::new();
+let input = "(3+4)*5+mm*2";  // the input is an expression
+let mut ctx = Context::new(); // create a context
 ctx.set_variable(&String::from("mm"), Param::Literal(Decimal::new(2, 1)));
 match execute(input, ctx) {
     Err(e) => println!("{}", e),
