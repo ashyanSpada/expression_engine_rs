@@ -20,6 +20,8 @@ match execute(input, ctx) {
 }
 ```
 
+## Features
+
 ## Fundamental Types
 
 The engine supports 5 fundamental types, respectively, the Boolean type, the Numeric type, the String type, the Map type and the List type.
