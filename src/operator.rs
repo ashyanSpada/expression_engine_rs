@@ -400,3 +400,16 @@ impl UnaryOpFuncManager {
         Ok(ans.unwrap().clone())
     }
 }
+
+#[test]
+fn print_op() {
+    let mut list = Vec::new();
+    let m = BinaryOpFuncManager::new();
+    for (key, (precedence, _)) in &m.store {
+        list.push((key, precedence));
+    }
+    list.sort_by(|a, b| a.1.cmp(b.1));
+    for (key, precedence) in list {
+        print!("op:{}-precedence:{}\n", key, precedence);
+    }
+}

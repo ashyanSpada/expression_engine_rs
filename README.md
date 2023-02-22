@@ -8,12 +8,12 @@ Expression executor aims to provide an engine for users that can execute complex
 
 ## Usage
 
-Calling the engine is simple. At first, define the expression you want to execute. Secondly, create a context. And then, register the variables and functions to the context. Finally, call the execute function with  the expression and context to get the executing result.
+Calling the engine is simple. At first, define the expression you want to execute. Secondly, create a context to cache the pre-defined inner functions and variables. And then, register the variables and functions to the context. Finally, call the execute function with  the expression and context to get the executing result.
 
 ```rust
 let input = "(3+4)*5+mm*2";  // the input is an expression
 let mut ctx = Context::new(); // create a context
-ctx.set_variable(&String::from("mm"), Param::Literal(Decimal::new(2, 1)));
+ctx.set_variable(&String::from("mm"), Param::Number(Decimal::new(2, 1)));
 match execute(input, ctx) {
     Err(e) => println!("{}", e),
     Ok(param) => println!("ans is {}", param),
@@ -24,14 +24,13 @@ match execute(input, ctx) {
 
 The engine supports 5 fundamental types, respectively, the Boolean type, the Numeric type, the String type, the Map type and the List type.
 
-|Type|Example|Desc|
-|----|----|----|
-|Bool|True\|False\|true\|false||
-|Number|1.23\|-0.5\|1e3||
-|String|'test'\|"test"||
-|Map|{"a":"b","c":true}||
-|List|[1,2,3,true,"res"]||
-
+| Type   | Example                  |
+| ------ | ------------------------ |
+| Bool   | True\|False\|true\|false |
+| Number | 1.23\|-0.5\|1e3          |
+| String | 'test'\|"test"           |
+| Map    | {"a":"b","c":true}       |
+| List   | [1,2,3,true,"res"]       |
 
 ## Supported Exprs
 
@@ -42,12 +41,36 @@ Pattern: op expr
 Example: !(2 > 3)
 ```
 
+| Op  | Desc |
+| --- | ---- |
+| !   |      |
+| not |      |
+
 ### Binary Expr
 
 ```
 Pattern: expr1 op expr2
 Example: (2 + 3) * 5
 ```
+
+| Op        | Precedence | Desc |
+| --------- | ---------- | ---- |
+| !=        | 20         |      |
+| ==        | 20         |      |
+| >         | 20         |      |
+| <         | 20         |      |
+| >=        | 20         |      |
+| <=        | 20         |      |
+| \|\|      | 40         |      |
+| &&        | 40         |      |
+| +         | 60         |      |
+| -         | 60         |      |
+| *         | 80         |      |
+| /         | 80         |      |
+| %         | 80         |      |
+| in        | 100        |      |
+| endWith   | 120        |      |
+| beginWith | 120        |      |
 
 ### Ternary Expr
 
