@@ -24,6 +24,15 @@ match execute(input, ctx) {
 
 The engine supports 5 fundamental types, respectively, the Boolean type, the Numeric type, the String type, the Map type and the List type.
 
+|Type|Example|Desc|
+|----|----|----|
+|Bool|True\|False\|true\|false||
+|Number|1.23\|-0.5\|1e3||
+|String|'test'\|"test"||
+|Map|{"a":"b","c":true}||
+|List|[1,2,3,true,"res"]||
+
+
 ## Supported Exprs
 
 ### Unary Expr
