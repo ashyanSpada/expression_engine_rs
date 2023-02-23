@@ -21,6 +21,11 @@ match execute(input, ctx) {
 ```
 
 ## Features
++ Easy to Use (three lines at least)
++ Abundant Types and Expressions (Five fundamental types and seven kinds of expressions)
++ Pre-defined Operators Support (Common boolean, numeric and string operators)
++ Support function and operators registration
++ Support operator redirection  
 
 ## Fundamental Types
 
