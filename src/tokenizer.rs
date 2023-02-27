@@ -1,9 +1,9 @@
-use std::str;
+use crate::define::Result;
+use crate::error::Error;
+use crate::keyword::{KeywordManager, KeywordType};
 use crate::token::{Span, Token};
 use rust_decimal::prelude::*;
-use crate::error::Error;
-use crate::define::Result;
-use crate::keyword::{KeywordManager, KeywordType};
+use std::str;
 
 #[derive(Clone)]
 pub struct Tokenizer<'a> {
@@ -14,10 +14,9 @@ pub struct Tokenizer<'a> {
     pub prev_token: Token,
 }
 
-impl <'a> Tokenizer<'a> {
-
+impl<'a> Tokenizer<'a> {
     pub fn new(input: &str) -> Tokenizer {
-        Tokenizer{
+        Tokenizer {
             input: input,
             chars: input.char_indices(),
             cur_char: ' ',
@@ -32,7 +31,7 @@ impl <'a> Tokenizer<'a> {
         Some((cur, cur_char))
     }
 
-    fn peek_one(&mut self) -> Option<(usize,char)> {
+    fn peek_one(&mut self) -> Option<(usize, char)> {
         self.chars.clone().next()
     }
 
@@ -40,11 +39,15 @@ impl <'a> Tokenizer<'a> {
         self.eat_whitespace();
         self.prev_token = self.cur_token.clone();
         self.cur_token = match self.next_one() {
-            Some((start, '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':')) => self.operator_token(start),
+            Some((
+                start,
+                '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':',
+            )) => self.operator_token(start),
             Some((start, '(' | ')' | '[' | ']' | '{' | '}')) => self.bracket_token(start),
-            Some((start, _ch @'0' ..= '9')) => self.literal_token(start),
+            Some((start, _ch @ '0'..='9')) => self.number_token(start),
             Some((start, '"' | '\'')) => self.string_token(start),
             Some((start, ',')) => self.comma_token(start),
+            Some((start, ';')) => self.semicolon_token(start),
             None => Ok(Token::EOF),
             Some((start, ch)) => self.other_token(ch, start),
         }?;
@@ -52,7 +55,8 @@ impl <'a> Tokenizer<'a> {
     }
 
     fn other_token(&mut self, ch: char, start: usize) -> Result<Token> {
-        if (ch == 't' && self.try_parse_ident("rue")) || (ch == 'f' && self.try_parse_ident("alse")) {
+        if (ch == 't' && self.try_parse_ident("rue")) || (ch == 'f' && self.try_parse_ident("alse"))
+        {
             return self.bool_token(start, ch == 't');
         }
         if is_param_char(ch) {
@@ -73,17 +77,17 @@ impl <'a> Tokenizer<'a> {
                 if bracket == op {
                     return Ok(());
                 }
-            },
-            Token::Operator(operator , _) => {
+            }
+            Token::Operator(operator, _) => {
                 if operator == op {
                     return Ok(());
                 }
-            },
+            }
             Token::Comma(c, _) => {
                 if c == op {
                     return Ok(());
                 }
-            },
+            }
             _ => {
                 return Err(Error::ExpectedOpNotExist(op));
             }
@@ -92,11 +96,24 @@ impl <'a> Tokenizer<'a> {
     }
 
     fn bracket_token(&mut self, start: usize) -> Result<Token> {
-        Ok(Token::Bracket(self.input[start..start+1].to_owned(), Span(start, start+1)))
+        Ok(Token::Bracket(
+            self.input[start..start + 1].to_owned(),
+            Span(start, start + 1),
+        ))
     }
 
     fn comma_token(&mut self, start: usize) -> Result<Token> {
-        Ok(Token::Comma(self.input[start..start+1].to_owned(), Span(start, start+1)))
+        Ok(Token::Comma(
+            self.input[start..start + 1].to_owned(),
+            Span(start, start + 1),
+        ))
+    }
+
+    fn semicolon_token(&mut self, start: usize) -> Result<Token> {
+        Ok(Token::Semicolon(
+            self.input[start..start + 1].to_owned(),
+            Span(start, start + 1),
+        ))
     }
 
     fn operator_token(&mut self, start: usize) -> Result<Token> {
@@ -106,34 +123,39 @@ impl <'a> Tokenizer<'a> {
                     if is_operator_char(ch) {
                         self.next_one();
                     } else {
-                        break
+                        break;
                     }
-                },
+                }
                 None => break,
             }
         }
-        Ok(Token::Operator(self.input[start..self.current()].to_owned(), Span(start, self.current())))
+        Ok(Token::Operator(
+            self.input[start..self.current()].to_owned(),
+            Span(start, self.current()),
+        ))
     }
 
-    fn literal_token(&mut self, start: usize) -> Result<Token> {
+    fn number_token(&mut self, start: usize) -> Result<Token> {
         loop {
             match self.peek_one() {
                 Some((_, ch)) => {
                     if (ch == '+' || ch == '-') && (self.cur_char != 'e' || self.cur_char != 'E') {
-                        break
+                        break;
                     }
                     if is_digit_char(ch) {
                         self.next_one();
                     } else {
-                        break
+                        break;
                     }
-                },
+                }
                 None => break,
             }
         }
         match rust_decimal::Decimal::from_str(&self.input[start..self.current()]) {
-            Ok(val) => Ok(Token::Literal(val, Span(start, self.current()))),
-            Err(_) => Err(Error::InvalidNumber(self.input[start..self.current()].to_string()))
+            Ok(val) => Ok(Token::Number(val, Span(start, self.current()))),
+            Err(_) => Err(Error::InvalidNumber(
+                self.input[start..self.current()].to_string(),
+            )),
         }
     }
 
@@ -144,26 +166,34 @@ impl <'a> Tokenizer<'a> {
                     if is_param_char(ch) {
                         self.next_one();
                     } else {
-                        break
+                        break;
                     }
-                },
-                None => break
+                }
+                None => break,
             }
         }
         let name = self.input[start..self.current()].to_string();
         match KeywordManager::new().get_type(&name) {
             KeywordType::Function => Ok(Token::Function(name.clone(), Span(start, self.current()))),
             KeywordType::Op => Ok(Token::Operator(name.clone(), Span(start, self.current()))),
-            KeywordType::Reference => Ok(Token::Reference(name.clone(), Span(start, self.current()))),
+            KeywordType::Reference => {
+                Ok(Token::Reference(name.clone(), Span(start, self.current())))
+            }
             KeywordType::Unknown => {
                 let token = self.peek()?;
                 if token.is_left_paren() {
-                    return Ok(Token::Function(self.input[start..self.current()].to_owned(), Span(start, self.current())));
+                    return Ok(Token::Function(
+                        self.input[start..self.current()].to_owned(),
+                        Span(start, self.current()),
+                    ));
                 }
-                return Ok(Token::Reference(self.input[start..self.current()].to_owned(), Span(start, self.current())));
-                }
+                return Ok(Token::Reference(
+                    self.input[start..self.current()].to_owned(),
+                    Span(start, self.current()),
+                ));
+            }
         }
-    } 
+    }
 
     // fn refrence_token(&mut self, start: usize) -> Result<Option<Token>> {
     //     'outer: loop {
@@ -208,16 +238,19 @@ impl <'a> Tokenizer<'a> {
                 Some((_, ch)) => {
                     if ch == identifier {
                         string_termmited = true;
-                        break
+                        break;
                     }
-                },
-                None => break
+                }
+                None => break,
             }
         }
         if !string_termmited {
-            return Err(Error::UnterminatedString(self.current()))
+            return Err(Error::UnterminatedString(self.current()));
         }
-        Ok(Token::String(self.input[start+1..self.current()-1].to_owned(), Span(start, self.current())))
+        Ok(Token::String(
+            self.input[start + 1..self.current() - 1].to_owned(),
+            Span(start, self.current()),
+        ))
     }
 
     fn bool_token(&mut self, start: usize, val: bool) -> Result<Token> {
@@ -237,15 +270,14 @@ impl <'a> Tokenizer<'a> {
             match self.next_one() {
                 Some((_, ch)) => {
                     if ch != expect {
-                        return false
+                        return false;
                     }
-                },
+                }
                 None => return false,
             }
         }
         true
     }
-
 
     fn eat_whitespace(&mut self) -> Option<()> {
         loop {
@@ -269,25 +301,25 @@ impl <'a> Tokenizer<'a> {
 }
 
 fn is_digit_char(ch: char) -> bool {
-    return '0' <= ch && ch <= '9' || ch == '.' || ch =='-' || ch =='e' || ch =='E' || ch == '+'
+    return '0' <= ch && ch <= '9' || ch == '.' || ch == '-' || ch == 'e' || ch == 'E' || ch == '+';
 }
 
 fn is_whitespace_char(ch: char) -> bool {
-    return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n'
+    return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n';
 }
 
 fn is_param_char(ch: char) -> bool {
-    return ('0' <= ch && ch <= '9') ||
-        ('a' <= ch && ch <= 'z') ||
-        ('A' <= ch && ch <= 'Z') ||
-        ch == '.' ||
-        ch == '_'
+    return ('0' <= ch && ch <= '9')
+        || ('a' <= ch && ch <= 'z')
+        || ('A' <= ch && ch <= 'Z')
+        || ch == '.'
+        || ch == '_';
 }
 
 fn is_operator_char(ch: char) -> bool {
     match ch {
         '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':' => true,
-        _ => false
+        _ => false,
     }
 }
 
@@ -297,13 +329,11 @@ fn test() {
     let mut tokenizer = Tokenizer::new(input);
     loop {
         match tokenizer.next() {
-            Ok(Token::EOF) => {
-                break
-            },
+            Ok(Token::EOF) => break,
             Ok(t) => {
                 println!("{}", t)
-            },
-            Err(e) => println!("{}", e)
+            }
+            Err(e) => println!("{}", e),
         }
     }
 }

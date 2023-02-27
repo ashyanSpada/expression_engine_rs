@@ -8,12 +8,13 @@ pub struct Span(pub usize, pub usize);
 pub enum Token {
     Bracket(String, Span),
     Operator(String, Span),
-    Literal(Decimal, Span),
+    Number(Decimal, Span),
     Comma(String, Span),
     Bool(bool, Span),
     String(String, Span),
     Reference(String, Span),
     Function(String, Span),
+    Semicolon(String, Span),
     EOF,
 }
 
@@ -78,12 +79,13 @@ impl Token {
         match self {
             Self::Bracket(bracket, _) => bracket.clone(),
             Self::Operator(op, _) => op.clone(),
-            Self::Literal(val, _) => val.to_string(),
+            Self::Number(val, _) => val.to_string(),
             Self::Comma(val, _) => val.to_string(),
             Self::Bool(val, _) => val.to_string(),
             Self::String(val, _) => val.clone(),
             Self::Reference(val, _) => val.clone(),
             Self::Function(val, _) => val.clone(),
+            Self::Semicolon(val, _) => val.clone(),
             Self::EOF => "EOF".to_string(),
         }
     }
@@ -101,11 +103,12 @@ impl fmt::Display for Token {
             Self::Bracket(bracket, _) => write!(f, "Bracket Token: {}", bracket),
             Self::Bool(val, _) => write!(f, "Bool Token: {}", val),
             Self::Comma(val, _) => write!(f, "Comma Token: {}", val),
-            Self::Literal(val, _) => write!(f, "Literal Token: {}", val),
+            Self::Number(val, _) => write!(f, "Number Token: {}", val),
             Self::Operator(val, _) => write!(f, "Operator Token: {}", val),
             Self::Reference(val, _) => write!(f, "Reference Token: {}", val),
             Self::Function(val, _) => write!(f, "Function Token: {}", val),
             Self::String(val, _) => write!(f, "String Token: {}", val),
+            Self::Semicolon(val, _) => write!(f, "Semicolon Token: {}", val),
             Self::EOF => write!(f, "EOF"),
         }
     }

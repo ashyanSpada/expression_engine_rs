@@ -6,7 +6,6 @@ mod keyword;
 mod operator;
 mod token;
 mod tokenizer;
-use rust_decimal::prelude::*;
 use std::sync::Arc;
 
 pub fn execute(expr: &str, ctx: define::Context) -> define::Result<define::Param> {
@@ -19,6 +18,7 @@ pub type Param = define::Param;
 
 #[test]
 fn test_exec() {
+    use rust_decimal::prelude::*;
     let input = "(3+4)*5+mm*2";
     let mut ctx = Context::new();
     ctx.set_variable(&String::from("mm"), Param::Number(Decimal::new(2, 1)));

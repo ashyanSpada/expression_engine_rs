@@ -10,7 +10,7 @@ use std::sync::Arc;
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum ExprAST {
-    Literal(Decimal),
+    Number(Decimal),
     Bool(bool),
     String(String),
     Unary(String, Arc<ExprAST>),
@@ -20,13 +20,14 @@ pub enum ExprAST {
     Function(String, Vec<ExprAST>),
     List(Vec<ExprAST>),
     Map(Vec<(ExprAST, ExprAST)>),
+    Chain(Vec<ExprAST>),
     None,
 }
 
 impl fmt::Display for ExprAST {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Literal(val) => write!(f, "Literal AST: {}", val.clone()),
+            Self::Number(val) => write!(f, "Number AST: {}", val.clone()),
             Self::Bool(val) => write!(f, "Bool AST: {}", val.clone()),
             Self::String(val) => write!(f, "String AST: {}", val.clone()),
             Self::Unary(op, rhs) => {
@@ -70,6 +71,13 @@ impl fmt::Display for ExprAST {
                 }
                 write!(f, "MAP AST: {}", s)
             }
+            Self::Chain(exprs) => {
+                let mut s = String::new();
+                for expr in exprs {
+                    s.push_str(format!("{};", expr.clone()).as_str());
+                }
+                write!(f, "Chain AST: {}", s)
+            }
             Self::None => write!(f, "None"),
         }
     }
@@ -79,7 +87,7 @@ impl ExprAST {
     pub fn exec(&self, ctx: Arc<Context>) -> Result<Param> {
         match self {
             Self::Bool(val) => self.exec_bool(val.clone()),
-            Self::Literal(val) => self.exec_literal(val.clone()),
+            Self::Number(val) => self.exec_number(val.clone()),
             Self::String(val) => self.exec_string(val.clone()),
             Self::Reference(name) => self.exec_reference(name, ctx.clone()),
             Self::Function(name, exprs) => self.exec_function(name, exprs.clone(), ctx.clone()),
@@ -91,6 +99,7 @@ impl ExprAST {
                 self.exec_ternary(condition.clone(), lhs.clone(), rhs.clone(), ctx.clone())
             }
             Self::List(params) => self.exec_list(params.clone(), ctx.clone()),
+            Self::Chain(exprs) => self.exec_list(exprs.clone(), ctx.clone()),
             Self::Map(m) => self.exec_map(m.clone(), ctx.clone()),
             Self::None => Ok(Param::None),
         }
@@ -100,7 +109,7 @@ impl ExprAST {
         Ok(Param::Bool(val))
     }
 
-    fn exec_literal(&self, val: Decimal) -> Result<Param> {
+    fn exec_number(&self, val: Decimal) -> Result<Param> {
         Ok(Param::Number(val))
     }
 
@@ -131,8 +140,8 @@ impl ExprAST {
         }
     }
 
-    fn redirect_inner_function(&self, name: &String, params: Vec<Param>) -> Result<Param> {
-        InnerFunctionManager::new().get(name.clone())?(params)
+    fn redirect_inner_function(&self, name: &str, params: Vec<Param>) -> Result<Param> {
+        InnerFunctionManager::new().get(name)?(params)
     }
 
     fn exec_unary(&self, op: String, rhs: Arc<ExprAST>, ctx: Arc<Context>) -> Result<Param> {
@@ -191,7 +200,7 @@ impl ExprAST {
                 }
                 return "false".to_string();
             }
-            Self::Literal(val) => self.literal_expr(val.clone()),
+            Self::Number(val) => self.number_expr(val.clone()),
             Self::String(val) => self.string_expr(val.clone()),
             Self::Reference(name) => self.reference_expr(name.clone()),
             Self::Function(name, exprs) => self.function_expr(name.clone(), exprs.clone()),
@@ -202,11 +211,12 @@ impl ExprAST {
             }
             Self::List(params) => self.list_expr(params.clone()),
             Self::Map(m) => self.map_expr(m.clone()),
+            Self::Chain(exprs) => self.chain_expr(exprs.clone()),
             Self::None => "".to_string(),
         }
     }
 
-    fn literal_expr(&self, val: Decimal) -> String {
+    fn number_expr(&self, val: Decimal) -> String {
         val.to_string()
     }
 
@@ -309,6 +319,17 @@ impl ExprAST {
         s
     }
 
+    fn chain_expr(&self, exprs: Vec<ExprAST>) -> String {
+        let mut s = String::new();
+        for i in 0..exprs.len() {
+            s.push_str(exprs[i].expr().as_str());
+            if i < exprs.len() - 1 {
+                s.push_str(";");
+            }
+        }
+        s
+    }
+
     fn get_precidence(&self) -> (bool, i32) {
         match self {
             ExprAST::Binary(op, _, _) => {
@@ -357,7 +378,7 @@ impl<'a> AST<'a> {
     fn parse_token(&mut self) -> Result<ExprAST> {
         let token = self.cur_tok();
         match token {
-            Token::Literal(val, _) => Ok(ExprAST::Literal(val)),
+            Token::Number(val, _) => Ok(ExprAST::Number(val)),
             Token::Bool(val, _) => Ok(ExprAST::Bool(val)),
             Token::Comma(_, _) => {
                 self.next()?;
@@ -368,6 +389,7 @@ impl<'a> AST<'a> {
             Token::Function(name, _) => self.parse_function(name),
             Token::Operator(op, _) => self.parse_operator(op),
             Token::Bracket(_, _) => self.parse_bracket(),
+            Token::Semicolon(_, _) => self.parse_semicolon(),
             Token::EOF => Ok(ExprAST::None),
         }
     }
@@ -385,7 +407,7 @@ impl<'a> AST<'a> {
     fn parse_primary(&mut self) -> Result<ExprAST> {
         let expr = self.parse_token()?;
         match expr {
-            ExprAST::Literal(_)
+            ExprAST::Number(_)
             | ExprAST::String(_)
             | ExprAST::Bool(_)
             | ExprAST::Function(_, _)
@@ -499,6 +521,8 @@ impl<'a> AST<'a> {
         }
         Ok(ExprAST::List(exprs))
     }
+
+    fn parse_semicolon(&mut self) -> Result<ExprAST> {}
 
     fn parse_operator(&mut self, op: String) -> Result<ExprAST> {
         self.next()?;
