@@ -98,8 +98,8 @@ impl InnerFunctionManager {
         m
     }
 
-    pub(crate) fn register(&mut self, name: String, f: Arc<InnerFunction>) {
-        self.store.insert(name, f);
+    pub fn register(&mut self, name: &str, f: Arc<InnerFunction>) {
+        self.store.insert(name.to_string(), f);
     }
 
     pub fn get(&self, name: &str) -> Result<Arc<InnerFunction>> {
