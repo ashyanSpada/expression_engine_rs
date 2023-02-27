@@ -98,14 +98,14 @@ impl InnerFunctionManager {
         m
     }
 
-    pub fn register(&mut self, name: String, f: Arc<InnerFunction>) {
-        self.store.insert(name, f);
+    pub(crate) fn register(&mut self, name: &str, f: Arc<InnerFunction>) {
+        self.store.insert(String::from(name), f);
     }
 
-    pub fn get(&self, name: String) -> Result<Arc<InnerFunction>> {
-        let ans = self.store.get(&name);
+    pub fn get(&self, name: &str) -> Result<Arc<InnerFunction>> {
+        let ans = self.store.get(name);
         if ans.is_none() {
-            return Err(Error::InnerFunctionNotRegistered(name));
+            return Err(Error::InnerFunctionNotRegistered(String::from(name)));
         }
         Ok(ans.unwrap().clone())
     }
