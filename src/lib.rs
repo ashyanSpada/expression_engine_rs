@@ -7,6 +7,8 @@ mod operator;
 mod token;
 mod tokenizer;
 use std::sync::Arc;
+#[macro_use]
+mod value;
 
 pub fn execute(expr: &str, ctx: define::Context) -> define::Result<define::Param> {
     ast::AST::new(expr)?.parse_expression()?.exec(Arc::new(ctx))
