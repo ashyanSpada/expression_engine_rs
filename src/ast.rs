@@ -7,6 +7,8 @@ use crate::tokenizer::Tokenizer;
 use rust_decimal::prelude::*;
 use std::fmt;
 use std::sync::Arc;
+use crate::value::Value;
+use crate::context::Context;
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum ExprAST {
@@ -84,7 +86,7 @@ impl fmt::Display for ExprAST {
 }
 
 impl ExprAST {
-    pub fn exec(&self, ctx: Arc<Context>) -> Result<Param> {
+    pub fn exec(&self, ctx: Arc<Context>) -> Result<Value> {
         match self {
             Self::Bool(val) => self.exec_bool(val.clone()),
             Self::Number(val) => self.exec_number(val.clone()),
@@ -101,23 +103,23 @@ impl ExprAST {
             Self::List(params) => self.exec_list(params.clone(), ctx.clone()),
             Self::Chain(exprs) => self.exec_list(exprs.clone(), ctx.clone()),
             Self::Map(m) => self.exec_map(m.clone(), ctx.clone()),
-            Self::None => Ok(Param::None),
+            Self::None => Ok(Value::None),
         }
     }
 
-    fn exec_bool(&self, val: bool) -> Result<Param> {
-        Ok(Param::Bool(val))
+    fn exec_bool(&self, val: bool) -> Result<Value> {
+        Ok(Value::Bool(val))
     }
 
-    fn exec_number(&self, val: Decimal) -> Result<Param> {
-        Ok(Param::Number(val))
+    fn exec_number(&self, val: Decimal) -> Result<Value> {
+        Ok(Value::Number(val))
     }
 
-    fn exec_string(&self, val: String) -> Result<Param> {
-        Ok(Param::String(val))
+    fn exec_string(&self, val: String) -> Result<Value> {
+        Ok(Value::String(val))
     }
 
-    fn exec_reference(&self, name: &String, ctx: Arc<Context>) -> Result<Param> {
+    fn exec_reference(&self, name: &String, ctx: Arc<Context>) -> Result<Value> {
         match ctx.get_variable(name) {
             Some(value) => Ok(value),
             None => Err(Error::WrongContextValueType()),
@@ -129,8 +131,8 @@ impl ExprAST {
         name: &String,
         exprs: Vec<ExprAST>,
         ctx: Arc<Context>,
-    ) -> Result<Param> {
-        let mut params: Vec<Param> = Vec::new();
+    ) -> Result<Value> {
+        let mut params: Vec<Value> = Vec::new();
         for expr in exprs.into_iter() {
             params.push(expr.exec(ctx.clone())?)
         }
@@ -140,11 +142,11 @@ impl ExprAST {
         }
     }
 
-    fn redirect_inner_function(&self, name: &str, params: Vec<Param>) -> Result<Param> {
+    fn redirect_inner_function(&self, name: &str, params: Vec<Value>) -> Result<Value> {
         InnerFunctionManager::new().get(name)?(params)
     }
 
-    fn exec_unary(&self, op: String, rhs: Arc<ExprAST>, ctx: Arc<Context>) -> Result<Param> {
+    fn exec_unary(&self, op: String, rhs: Arc<ExprAST>, ctx: Arc<Context>) -> Result<Value> {
         UnaryOpFuncManager::new().get(op)?(rhs.exec(ctx)?)
     }
 
@@ -154,7 +156,7 @@ impl ExprAST {
         lhs: Arc<ExprAST>,
         rhs: Arc<ExprAST>,
         ctx: Arc<Context>,
-    ) -> Result<Param> {
+    ) -> Result<Value> {
         BinaryOpFuncManager::new().get(op)?(lhs.exec(ctx.clone())?, rhs.exec(ctx.clone())?)
     }
 
@@ -164,9 +166,9 @@ impl ExprAST {
         lhs: Arc<ExprAST>,
         rhs: Arc<ExprAST>,
         ctx: Arc<Context>,
-    ) -> Result<Param> {
+    ) -> Result<Value> {
         match condition.exec(ctx.clone())? {
-            Param::Bool(val) => {
+            Value::Bool(val) => {
                 if val {
                     return lhs.exec(ctx.clone());
                 }
@@ -176,20 +178,20 @@ impl ExprAST {
         }
     }
 
-    fn exec_list(&self, params: Vec<ExprAST>, ctx: Arc<Context>) -> Result<Param> {
+    fn exec_list(&self, params: Vec<ExprAST>, ctx: Arc<Context>) -> Result<Value> {
         let mut ans = Vec::new();
         for expr in params {
             ans.push(expr.exec(ctx.clone())?);
         }
-        Ok(Param::List(ans))
+        Ok(Value::List(ans))
     }
 
-    fn exec_map(&self, m: Vec<(ExprAST, ExprAST)>, ctx: Arc<Context>) -> Result<Param> {
+    fn exec_map(&self, m: Vec<(ExprAST, ExprAST)>, ctx: Arc<Context>) -> Result<Value> {
         let mut ans = Vec::new();
         for (k, v) in m {
             ans.push((k.exec(ctx.clone())?, v.exec(ctx.clone())?));
         }
-        Ok(Param::Map(ans))
+        Ok(Value::Map(ans))
     }
 
     pub fn expr(&self) -> String {
@@ -575,7 +577,7 @@ fn test_exec() {
     let input = "\"abcdsaf\" endWith \"acd\"";
     let ast = AST::new(input);
     let mut ctx = Context::new();
-    ctx.set_variable(&"mm".to_string(), Param::Number(Decimal::new(12, 0)));
+    ctx.set_variable(&"mm".to_string(), Value::Number(Decimal::new(12, 0)));
     match ast {
         Ok(mut a) => {
             let expr = a.parse_expression().unwrap();

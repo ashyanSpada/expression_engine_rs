@@ -1,11 +1,12 @@
-use crate::define::{Param, Result};
+use crate::define::Result;
 use crate::error::Error;
 use std::collections::HashMap;
 use std::sync::Arc;
+use crate::value::Value;
 
-type BinaryOpFunc = dyn Fn(Param, Param) -> Result<Param> + Send + 'static;
+type BinaryOpFunc = dyn Fn(Value, Value) -> Result<Value> + Send + 'static;
 
-type UnaryOpFunc = dyn Fn(Param) -> Result<Param> + Send + 'static;
+type UnaryOpFunc = dyn Fn(Value) -> Result<Value> + Send + 'static;
 
 pub struct BinaryOpFuncManager {
     store: HashMap<String, (i32, Arc<BinaryOpFunc>)>,
@@ -39,14 +40,14 @@ impl BinaryOpFuncManager {
                 60,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Number(a) => a,
+                        Value::Number(a) => a,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
                     let b = match right {
-                        Param::Number(b) => b,
+                        Value::Number(b) => b,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
-                    Ok(Param::Number(a + b))
+                    Ok(Value::Number(a + b))
                 }),
             ),
         );
@@ -57,14 +58,14 @@ impl BinaryOpFuncManager {
                 60,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Number(a) => a,
+                        Value::Number(a) => a,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
                     let b = match right {
-                        Param::Number(b) => b,
+                        Value::Number(b) => b,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
-                    Ok(Param::Number(a - b))
+                    Ok(Value::Number(a - b))
                 }),
             ),
         );
@@ -74,21 +75,21 @@ impl BinaryOpFuncManager {
             (
                 100,
                 Arc::new(|left, right| match right {
-                    Param::List(params) => {
+                    Value::List(params) => {
                         for target in params {
                             if target == left {
-                                return Ok(Param::Bool(true));
+                                return Ok(Value::Bool(true));
                             }
                         }
-                        return Ok(Param::Bool(false));
+                        return Ok(Value::Bool(false));
                     }
-                    Param::Map(params) => {
+                    Value::Map(params) => {
                         for (target, _) in params {
                             if target == left {
-                                return Ok(Param::Bool(true));
+                                return Ok(Value::Bool(true));
                             }
                         }
-                        return Ok(Param::Bool(false));
+                        return Ok(Value::Bool(false));
                     }
                     _ => Err(Error::ParamInvalid()),
                 }),
@@ -100,12 +101,12 @@ impl BinaryOpFuncManager {
             (
                 120,
                 Arc::new(|left, right| match left {
-                    Param::String(s) => match right {
-                        Param::String(t) => {
+                    Value::String(s) => match right {
+                        Value::String(t) => {
                             if s.starts_with(&t) {
-                                return Ok(Param::Bool(true));
+                                return Ok(Value::Bool(true));
                             }
-                            return Ok(Param::Bool(false));
+                            return Ok(Value::Bool(false));
                         }
                         _ => Err(Error::ShouldBeString()),
                     },
@@ -119,12 +120,12 @@ impl BinaryOpFuncManager {
             (
                 120,
                 Arc::new(|left, right| match left {
-                    Param::String(s) => match right {
-                        Param::String(t) => {
+                    Value::String(s) => match right {
+                        Value::String(t) => {
                             if s.ends_with(&t) {
-                                return Ok(Param::Bool(true));
+                                return Ok(Value::Bool(true));
                             }
-                            return Ok(Param::Bool(false));
+                            return Ok(Value::Bool(false));
                         }
                         _ => Err(Error::ShouldBeString()),
                     },
@@ -139,14 +140,14 @@ impl BinaryOpFuncManager {
                 80,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Number(a) => a,
+                        Value::Number(a) => a,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
                     let b = match right {
-                        Param::Number(b) => b,
+                        Value::Number(b) => b,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
-                    Ok(Param::Number(a * b))
+                    Ok(Value::Number(a * b))
                 }),
             ),
         );
@@ -157,14 +158,14 @@ impl BinaryOpFuncManager {
                 80,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Number(a) => a,
+                        Value::Number(a) => a,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
                     let b = match right {
-                        Param::Number(b) => b,
+                        Value::Number(b) => b,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
-                    Ok(Param::Number(a / b))
+                    Ok(Value::Number(a / b))
                 }),
             ),
         );
@@ -175,14 +176,14 @@ impl BinaryOpFuncManager {
                 80,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Number(a) => a,
+                        Value::Number(a) => a,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
                     let b = match right {
-                        Param::Number(b) => b,
+                        Value::Number(b) => b,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
-                    Ok(Param::Number(a + b))
+                    Ok(Value::Number(a + b))
                 }),
             ),
         );
@@ -193,14 +194,14 @@ impl BinaryOpFuncManager {
                 40,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Bool(a) => a,
+                        Value::Bool(a) => a,
                         _ => return Err(Error::ShouldBeBool()),
                     };
                     let b = match right {
-                        Param::Bool(b) => b,
+                        Value::Bool(b) => b,
                         _ => return Err(Error::ShouldBeBool()),
                     };
-                    Ok(Param::Bool(a && b))
+                    Ok(Value::Bool(a && b))
                 }),
             ),
         );
@@ -211,26 +212,26 @@ impl BinaryOpFuncManager {
                 40,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Bool(a) => a,
+                        Value::Bool(a) => a,
                         _ => return Err(Error::ShouldBeBool()),
                     };
                     let b = match right {
-                        Param::Bool(b) => b,
+                        Value::Bool(b) => b,
                         _ => return Err(Error::ShouldBeBool()),
                     };
-                    Ok(Param::Bool(a || b))
+                    Ok(Value::Bool(a || b))
                 }),
             ),
         );
 
         m.insert(
             "==".to_string(),
-            (20, Arc::new(|left, right| Ok(Param::Bool(left == right)))),
+            (20, Arc::new(|left, right| Ok(Value::Bool(left == right)))),
         );
 
         m.insert(
             "!=".to_string(),
-            (20, Arc::new(|left, right| Ok(Param::Bool(left != right)))),
+            (20, Arc::new(|left, right| Ok(Value::Bool(left != right)))),
         );
 
         m.insert(
@@ -239,14 +240,14 @@ impl BinaryOpFuncManager {
                 80,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Number(a) => a,
+                        Value::Number(a) => a,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
                     let b = match right {
-                        Param::Number(b) => b,
+                        Value::Number(b) => b,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
-                    Ok(Param::Bool(a > b))
+                    Ok(Value::Bool(a > b))
                 }),
             ),
         );
@@ -257,14 +258,14 @@ impl BinaryOpFuncManager {
                 80,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Number(a) => a,
+                        Value::Number(a) => a,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
                     let b = match right {
-                        Param::Number(b) => b,
+                        Value::Number(b) => b,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
-                    Ok(Param::Bool(a >= b))
+                    Ok(Value::Bool(a >= b))
                 }),
             ),
         );
@@ -275,14 +276,14 @@ impl BinaryOpFuncManager {
                 80,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Number(a) => a,
+                        Value::Number(a) => a,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
                     let b = match right {
-                        Param::Number(b) => b,
+                        Value::Number(b) => b,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
-                    Ok(Param::Bool(a < b))
+                    Ok(Value::Bool(a < b))
                 }),
             ),
         );
@@ -293,14 +294,14 @@ impl BinaryOpFuncManager {
                 80,
                 Arc::new(|left, right| {
                     let a = match left {
-                        Param::Number(a) => a,
+                        Value::Number(a) => a,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
                     let b = match right {
-                        Param::Number(b) => b,
+                        Value::Number(b) => b,
                         _ => return Err(Error::ShouldBeNumber()),
                     };
-                    Ok(Param::Bool(a <= b))
+                    Ok(Value::Bool(a <= b))
                 }),
             ),
         );
@@ -356,10 +357,10 @@ impl UnaryOpFuncManager {
             "-".to_string(),
             Arc::new(|param| {
                 let a = match param {
-                    Param::Number(a) => a,
+                    Value::Number(a) => a,
                     _ => return Err(Error::ShouldBeNumber()),
                 };
-                Ok(Param::Number(-a))
+                Ok(Value::Number(-a))
             }),
         );
 
@@ -367,10 +368,10 @@ impl UnaryOpFuncManager {
             "+".to_string(),
             Arc::new(|param| {
                 let a = match param {
-                    Param::Number(a) => a,
+                    Value::Number(a) => a,
                     _ => return Err(Error::ShouldBeNumber()),
                 };
-                Ok(Param::Number(a))
+                Ok(Value::Number(a))
             }),
         );
 
@@ -378,10 +379,10 @@ impl UnaryOpFuncManager {
             "!".to_string(),
             Arc::new(|param| {
                 let a = match param {
-                    Param::Bool(a) => a,
+                    Value::Bool(a) => a,
                     _ => return Err(Error::ShouldBeBool()),
                 };
-                Ok(Param::Bool(a))
+                Ok(Value::Bool(a))
             }),
         );
 

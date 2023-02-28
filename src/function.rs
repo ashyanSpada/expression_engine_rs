@@ -1,10 +1,11 @@
-use crate::define::{Param, Result};
+use crate::define::Result;
 use crate::error::Error;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::Arc;
+use crate::value::Value;
 
-pub type InnerFunction = dyn Fn(Vec<Param>) -> Result<Param> + Send + 'static;
+pub type InnerFunction = dyn Fn(Vec<Value>) -> Result<Value> + Send + 'static;
 
 pub struct InnerFunctionManager {
     pub store: HashMap<String, Arc<InnerFunction>>,
@@ -34,7 +35,7 @@ impl InnerFunctionManager {
                 let mut min = None;
                 for param in params.into_iter() {
                     match param {
-                        Param::Number(num) => {
+                        Value::Number(num) => {
                             if min.is_none() || num < min.unwrap() {
                                 min = Some(num);
                             }
@@ -42,7 +43,7 @@ impl InnerFunctionManager {
                         _ => return Err(Error::ShouldBeNumber()),
                     }
                 }
-                Ok(Param::Number(min.unwrap()))
+                Ok(Value::Number(min.unwrap()))
             }),
         );
 
@@ -52,7 +53,7 @@ impl InnerFunctionManager {
                 let mut max = None;
                 for param in params.into_iter() {
                     match param {
-                        Param::Number(num) => {
+                        Value::Number(num) => {
                             if max.is_none() || num > max.unwrap() {
                                 max = Some(num);
                             }
@@ -60,7 +61,7 @@ impl InnerFunctionManager {
                         _ => return Err(Error::ShouldBeNumber()),
                     }
                 }
-                Ok(Param::Number(max.unwrap()))
+                Ok(Value::Number(max.unwrap()))
             }),
         );
 
@@ -70,13 +71,13 @@ impl InnerFunctionManager {
                 let mut ans = Decimal::ZERO;
                 for param in params.into_iter() {
                     match param {
-                        Param::Number(num) => {
+                        Value::Number(num) => {
                             ans += num;
                         }
                         _ => return Err(Error::ShouldBeNumber()),
                     }
                 }
-                Ok(Param::Number(ans))
+                Ok(Value::Number(ans))
             }),
         );
 
@@ -86,13 +87,13 @@ impl InnerFunctionManager {
                 let mut ans = Decimal::ONE;
                 for param in params.into_iter() {
                     match param {
-                        Param::Number(num) => {
+                        Value::Number(num) => {
                             ans *= num;
                         }
                         _ => return Err(Error::ShouldBeNumber()),
                     }
                 }
-                Ok(Param::Number(ans))
+                Ok(Value::Number(ans))
             }),
         );
         m
