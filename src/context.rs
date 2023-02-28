@@ -3,9 +3,7 @@ use crate::function::InnerFunction;
 use crate::value::Value;
 use core::clone::Clone;
 use core::result;
-use rust_decimal::Decimal;
 use std::collections::HashMap;
-use std::fmt;
 use std::sync::Arc;
 
 pub type Result<T> = result::Result<T, Error>;
