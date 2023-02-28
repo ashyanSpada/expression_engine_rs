@@ -75,6 +75,13 @@ impl Token {
         }
     }
 
+    pub fn is_op_token(&self) -> bool {
+        match self {
+            Self::Operator(_, _) => true,
+            _ => false,
+        }
+    }
+
     pub fn string(&self) -> String {
         match self {
             Self::Bracket(bracket, _) => bracket.clone(),

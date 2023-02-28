@@ -1,14 +1,14 @@
+use crate::context::Context;
 use crate::define::*;
 use crate::error::Error;
 use crate::function::InnerFunctionManager;
 use crate::operator::{BinaryOpFuncManager, UnaryOpFuncManager};
 use crate::token::Token;
 use crate::tokenizer::Tokenizer;
+use crate::value::Value;
 use rust_decimal::prelude::*;
 use std::fmt;
 use std::sync::Arc;
-use crate::value::Value;
-use crate::context::Context;
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum ExprAST {
@@ -348,7 +348,6 @@ pub struct AST<'a> {
 
 impl<'a> AST<'a> {
     fn cur_tok(&self) -> Token {
-        // println!("cur Tok is: {}", self.tokenizer.cur_token.clone());
         self.tokenizer.cur_token.clone()
     }
 
@@ -366,6 +365,7 @@ impl<'a> AST<'a> {
 
     pub fn next(&mut self) -> Result<Token> {
         self.tokenizer.next()?;
+        println!("call next curTok is {}", self.cur_tok());
         Ok(self.cur_tok())
     }
 
@@ -380,14 +380,23 @@ impl<'a> AST<'a> {
     fn parse_token(&mut self) -> Result<ExprAST> {
         let token = self.cur_tok();
         match token {
-            Token::Number(val, _) => Ok(ExprAST::Number(val)),
-            Token::Bool(val, _) => Ok(ExprAST::Bool(val)),
-            Token::Comma(_, _) => {
+            Token::Number(val, _) => {
                 self.next()?;
-                self.parse_token()
+                Ok(ExprAST::Number(val))
             }
-            Token::String(val, _) => Ok(ExprAST::String(val)),
-            Token::Reference(val, _) => Ok(ExprAST::Reference(val)),
+            Token::Bool(val, _) => {
+                self.next()?;
+                Ok(ExprAST::Bool(val))
+            }
+            Token::Comma(_, _) => Err(Error::NoLeftBrace(1)),
+            Token::String(val, _) => {
+                self.next()?;
+                Ok(ExprAST::String(val))
+            }
+            Token::Reference(val, _) => {
+                self.next()?;
+                Ok(ExprAST::Reference(val))
+            }
             Token::Function(name, _) => self.parse_function(name),
             Token::Operator(op, _) => self.parse_operator(op),
             Token::Bracket(_, _) => self.parse_bracket(),
@@ -398,8 +407,7 @@ impl<'a> AST<'a> {
 
     pub fn parse_expression(&mut self) -> Result<ExprAST> {
         let lhs = self.parse_primary()?;
-        // println!("parse expression curTok: {}", self.cur_tok());
-        if self.cur_tok().is_eof() {
+        if !self.cur_tok().is_op_token() {
             return Ok(lhs);
         }
         let expr = self.parse_op(lhs)?;
@@ -408,16 +416,16 @@ impl<'a> AST<'a> {
 
     fn parse_primary(&mut self) -> Result<ExprAST> {
         let expr = self.parse_token()?;
-        match expr {
-            ExprAST::Number(_)
-            | ExprAST::String(_)
-            | ExprAST::Bool(_)
-            | ExprAST::Function(_, _)
-            | ExprAST::Reference(_) => {
-                self.next()?;
-            }
-            _ => {}
-        }
+        // match expr {
+        //     ExprAST::Number(_)
+        //     | ExprAST::String(_)
+        //     | ExprAST::Bool(_)
+        //     // | ExprAST::Function(_, _)
+        //     | ExprAST::Reference(_) => {
+        //         self.next()?;
+        //     }
+        //     _ => {}
+        // }
         Ok(expr)
     }
 
@@ -512,7 +520,6 @@ impl<'a> AST<'a> {
         let mut exprs = Vec::new();
         self.next()?;
         loop {
-            println!("list: {}", self.cur_tok());
             exprs.push(self.parse_expression()?);
             if self.cur_tok().is_right_bracket() {
                 self.next()?;
@@ -524,7 +531,9 @@ impl<'a> AST<'a> {
         Ok(ExprAST::List(exprs))
     }
 
-    fn parse_semicolon(&mut self) -> Result<ExprAST> {}
+    fn parse_semicolon(&mut self) -> Result<ExprAST> {
+        Err(Error::NoLeftBrace(1))
+    }
 
     fn parse_operator(&mut self, op: String) -> Result<ExprAST> {
         self.next()?;
@@ -533,33 +542,47 @@ impl<'a> AST<'a> {
 
     fn parse_function(&mut self, name: String) -> Result<ExprAST> {
         let next = self.next()?;
+        println!("next is {}", next);
         if !next.is_left_paren() {
+            print!("hahah");
             return Err(Error::NoLeftBrace(1));
         }
+        self.next()?;
         let mut ans = Vec::new();
-        let has_right_brace: bool;
+        let mut has_right_brace = false;
+        if self.cur_tok().is_right_paren() {
+            self.next()?;
+            return Ok(ExprAST::Function(name, ans));
+        }
         loop {
+            println!("loop, curTok: {}", self.cur_tok());
+            ans.push(self.parse_expression()?);
+            println!(
+                "pre tok is {}, {}, {}",
+                ans.last().unwrap(),
+                self.cur_tok(),
+                self.cur_tok().is_eof()
+            );
             if self.cur_tok().is_right_paren() {
                 has_right_brace = true;
+                self.next()?;
                 break;
             }
-            match self.next()? {
-                Token::EOF => {}
-                _ => {
-                    ans.push(self.parse_expression()?);
-                }
-            }
+            println!("cur tok is {}, {}", self.cur_tok(), self.cur_tok().is_eof());
+            self.expect(",".to_string())?;
+            self.next()?;
         }
         if !has_right_brace {
             return Err(Error::NoRightBrace(0));
         }
+        println!("func parsed: {}", self.cur_tok());
         Ok(ExprAST::Function(name, ans))
     }
 }
 
 #[test]
 fn test() {
-    let input = "func(1+2+mm, 2, true, func(1, 2, 3))";
+    let input = "[func(true,1+2+3*(5+6)),2,5,6+5]";
     let ast = AST::new(input);
     match ast {
         Ok(mut a) => {

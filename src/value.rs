@@ -1,5 +1,5 @@
-use std::fmt;
 use rust_decimal::prelude::*;
+use std::fmt;
 
 #[derive(Clone, Hash, PartialEq)]
 pub enum Value {
