@@ -1,12 +1,8 @@
-use crate::error::Error;
 use crate::function::InnerFunction;
 use crate::value::Value;
 use core::clone::Clone;
-use core::result;
 use std::collections::HashMap;
 use std::sync::Arc;
-
-pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Clone)]
 pub enum ContextValue {

@@ -1,6 +1,7 @@
 mod ast;
 mod define;
 mod error;
+#[macro_use]
 mod function;
 mod keyword;
 mod operator;
@@ -15,12 +16,12 @@ pub fn execute(expr: &str, ctx: context::Context) -> define::Result<value::Value
     ast::AST::new(expr)?.parse_expression()?.exec(Arc::new(ctx))
 }
 
-type Value = value::Value;
+pub type Value = value::Value;
 pub type Context = context::Context;
 
 #[test]
 fn test_exec() {
-    let input = "(3+4)*5+mm*2";
+    let input = "[]";
     let mut ctx = Context::new();
     ctx.set_variable(&String::from("mm"), Value::from(0.2));
     match execute(input, ctx) {

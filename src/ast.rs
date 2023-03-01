@@ -143,7 +143,7 @@ impl ExprAST {
     }
 
     fn redirect_inner_function(&self, name: &str, params: Vec<Value>) -> Result<Value> {
-        InnerFunctionManager::new().get(name)?(params)
+        InnerFunctionManager::new().lock().unwrap().get(name)?(params)
     }
 
     fn exec_unary(&self, op: String, rhs: Arc<ExprAST>, ctx: Arc<Context>) -> Result<Value> {
@@ -600,7 +600,7 @@ fn test_exec() {
     let input = "\"abcdsaf\" endWith \"acd\"";
     let ast = AST::new(input);
     let mut ctx = Context::new();
-    ctx.set_variable(&"mm".to_string(), Value::Number(Decimal::new(12, 0)));
+    ctx.set_variable(&"mm".to_string(), Value::from(12.0_f64));
     match ast {
         Ok(mut a) => {
             let expr = a.parse_expression().unwrap();

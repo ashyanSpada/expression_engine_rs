@@ -1,8 +1,8 @@
 use crate::define::Result;
 use crate::error::Error;
+use crate::value::Value;
 use std::collections::HashMap;
 use std::sync::Arc;
-use crate::value::Value;
 
 type BinaryOpFunc = dyn Fn(Value, Value) -> Result<Value> + Send + 'static;
 

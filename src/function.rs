@@ -1,9 +1,9 @@
 use crate::define::Result;
 use crate::error::Error;
+use crate::value::Value;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
-use std::sync::Arc;
-use crate::value::Value;
+use std::sync::{Arc, Mutex};
 
 pub type InnerFunction = dyn Fn(Vec<Value>) -> Result<Value> + Send + 'static;
 
@@ -12,15 +12,15 @@ pub struct InnerFunctionManager {
 }
 
 impl InnerFunctionManager {
-    pub fn new() -> Arc<Self> {
-        static mut INNER_FUNCTION_MANAGER: Option<Arc<InnerFunctionManager>> = None;
+    pub fn new() -> Arc<Mutex<InnerFunctionManager>> {
+        static mut INNER_FUNCTION_MANAGER: Option<Arc<Mutex<InnerFunctionManager>>> = None;
         unsafe {
             match &INNER_FUNCTION_MANAGER {
                 Some(m) => m.clone(),
                 None => INNER_FUNCTION_MANAGER
-                    .get_or_insert(Arc::new(InnerFunctionManager {
+                    .get_or_insert(Arc::new(Mutex::new(InnerFunctionManager {
                         store: Self::internal_register(HashMap::new()),
-                    }))
+                    })))
                     .clone(),
             }
         }
@@ -110,4 +110,32 @@ impl InnerFunctionManager {
         }
         Ok(ans.unwrap().clone())
     }
+}
+
+#[macro_export]
+macro_rules! func {
+    ($func:expr) => {
+        Arc::new($func)
+    };
+}
+
+#[test]
+fn test_register() {
+    use crate::func;
+    let m = InnerFunctionManager::new();
+    m.lock().unwrap().register(
+        "test",
+        func!(|params| {
+            let mut ans = Decimal::ZERO;
+            for param in params.into_iter() {
+                match param {
+                    Value::Number(num) => {
+                        ans += num;
+                    }
+                    _ => return Err(Error::ShouldBeNumber()),
+                }
+            }
+            Ok(Value::Number(ans))
+        }),
+    );
 }
