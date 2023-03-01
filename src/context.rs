@@ -2,7 +2,7 @@ use crate::function::InnerFunction;
 use crate::value::Value;
 use core::clone::Clone;
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub enum ContextValue {
@@ -10,25 +10,30 @@ pub enum ContextValue {
     Function(Arc<InnerFunction>),
 }
 
-pub struct Context(pub HashMap<String, ContextValue>);
+pub struct Context(pub Arc<Mutex<HashMap<String, ContextValue>>>);
 
 impl Context {
     pub fn new() -> Self {
-        Context(HashMap::new())
+        Context(Arc::new(Mutex::new(HashMap::new())))
     }
 
     pub fn set_func(&mut self, name: &String, func: Arc<InnerFunction>) {
         self.0
+            .lock()
+            .unwrap()
             .insert(name.clone(), ContextValue::Function(func.clone()));
     }
 
     pub fn set_variable(&mut self, name: &str, value: Value) {
         self.0
+            .lock()
+            .unwrap()
             .insert(name.to_string(), ContextValue::Variable(value));
     }
 
     pub fn get_func(&self, name: &str) -> Option<Arc<InnerFunction>> {
-        let value = self.0.get(name)?;
+        let binding = self.0.lock().unwrap();
+        let value = binding.get(name)?;
         match value {
             ContextValue::Function(func) => Some(func.clone()),
             ContextValue::Variable(_) => None,
@@ -36,7 +41,8 @@ impl Context {
     }
 
     pub fn get_variable(&self, name: &str) -> Option<Value> {
-        let value = self.0.get(name)?;
+        let binding = self.0.lock().unwrap();
+        let value = binding.get(name)?;
         match value {
             ContextValue::Variable(v) => Some(v.clone()),
             ContextValue::Function(_) => None,
@@ -44,7 +50,8 @@ impl Context {
     }
 
     pub fn get(&self, name: &String) -> Option<ContextValue> {
-        let value = self.0.get(name)?;
+        let binding = self.0.lock().unwrap();
+        let value = binding.get(name)?;
         Some(value.clone())
     }
 }

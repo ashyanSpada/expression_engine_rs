@@ -575,10 +575,10 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "true in [1,2,3,true]";
+    let input = "mm + 5";
     let ast = AST::new(input);
     let mut ctx = Context::new();
-    ctx.set_variable(&"mm".to_string(), Value::from(12.0_f64));
+    ctx.set_variable("mm", Value::from(12.0_f64));
     match ast {
         Ok(mut a) => {
             let expr = a.parse_expression().unwrap();
