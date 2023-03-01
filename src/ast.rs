@@ -15,9 +15,9 @@ pub enum ExprAST {
     Number(Decimal),
     Bool(bool),
     String(String),
-    Unary(String, Arc<ExprAST>),
-    Binary(String, Arc<ExprAST>, Arc<ExprAST>),
-    Ternary(Arc<ExprAST>, Arc<ExprAST>, Arc<ExprAST>),
+    Unary(String, Box<ExprAST>),
+    Binary(String, Box<ExprAST>, Box<ExprAST>),
+    Ternary(Box<ExprAST>, Box<ExprAST>, Box<ExprAST>),
     Reference(String),
     Function(String, Vec<ExprAST>),
     List(Vec<ExprAST>),
@@ -93,12 +93,10 @@ impl ExprAST {
             Self::String(val) => self.exec_string(val.clone()),
             Self::Reference(name) => self.exec_reference(name, ctx.clone()),
             Self::Function(name, exprs) => self.exec_function(name, exprs.clone(), ctx.clone()),
-            Self::Unary(op, rhs) => self.exec_unary(op.clone(), rhs.clone(), ctx.clone()),
-            Self::Binary(op, lhs, rhs) => {
-                self.exec_binary(op.clone(), lhs.clone(), rhs.clone(), ctx.clone())
-            }
+            Self::Unary(op, rhs) => self.exec_unary(op.clone(), rhs, ctx.clone()),
+            Self::Binary(op, lhs, rhs) => self.exec_binary(op.clone(), lhs, rhs, ctx.clone()),
             Self::Ternary(condition, lhs, rhs) => {
-                self.exec_ternary(condition.clone(), lhs.clone(), rhs.clone(), ctx.clone())
+                self.exec_ternary(condition, lhs, rhs, ctx.clone())
             }
             Self::List(params) => self.exec_list(params.clone(), ctx.clone()),
             Self::Chain(exprs) => self.exec_list(exprs.clone(), ctx.clone()),
@@ -146,15 +144,15 @@ impl ExprAST {
         InnerFunctionManager::new().lock().unwrap().get(name)?(params)
     }
 
-    fn exec_unary(&self, op: String, rhs: Arc<ExprAST>, ctx: Arc<Context>) -> Result<Value> {
+    fn exec_unary(&self, op: String, rhs: &Box<ExprAST>, ctx: Arc<Context>) -> Result<Value> {
         UnaryOpFuncManager::new().get(op)?(rhs.exec(ctx)?)
     }
 
     fn exec_binary(
         &self,
         op: String,
-        lhs: Arc<ExprAST>,
-        rhs: Arc<ExprAST>,
+        lhs: &Box<ExprAST>,
+        rhs: &Box<ExprAST>,
         ctx: Arc<Context>,
     ) -> Result<Value> {
         BinaryOpFuncManager::new().get(op)?(lhs.exec(ctx.clone())?, rhs.exec(ctx.clone())?)
@@ -162,9 +160,9 @@ impl ExprAST {
 
     fn exec_ternary(
         &self,
-        condition: Arc<ExprAST>,
-        lhs: Arc<ExprAST>,
-        rhs: Arc<ExprAST>,
+        condition: &Box<ExprAST>,
+        lhs: &Box<ExprAST>,
+        rhs: &Box<ExprAST>,
         ctx: Arc<Context>,
     ) -> Result<Value> {
         match condition.exec(ctx.clone())? {
@@ -206,11 +204,9 @@ impl ExprAST {
             Self::String(val) => self.string_expr(val.clone()),
             Self::Reference(name) => self.reference_expr(name.clone()),
             Self::Function(name, exprs) => self.function_expr(name.clone(), exprs.clone()),
-            Self::Unary(op, rhs) => self.unary_expr(op, rhs.clone()),
-            Self::Binary(op, lhs, rhs) => self.binary_expr(op, lhs.clone(), rhs.clone()),
-            Self::Ternary(condition, lhs, rhs) => {
-                self.ternary_expr(condition.clone(), lhs.clone(), rhs.clone())
-            }
+            Self::Unary(op, rhs) => self.unary_expr(op, rhs),
+            Self::Binary(op, lhs, rhs) => self.binary_expr(op, lhs, rhs),
+            Self::Ternary(condition, lhs, rhs) => self.ternary_expr(condition, lhs, rhs),
             Self::List(params) => self.list_expr(params.clone()),
             Self::Map(m) => self.map_expr(m.clone()),
             Self::Chain(exprs) => self.chain_expr(exprs.clone()),
@@ -242,13 +238,13 @@ impl ExprAST {
         name
     }
 
-    fn unary_expr(&self, op: &String, rhs: Arc<ExprAST>) -> String {
+    fn unary_expr(&self, op: &String, rhs: &Box<ExprAST>) -> String {
         let mut ans = op.clone();
         ans.push_str(&rhs.expr());
         ans
     }
 
-    fn binary_expr(&self, op: &String, lhs: Arc<ExprAST>, rhs: Arc<ExprAST>) -> String {
+    fn binary_expr(&self, op: &String, lhs: &Box<ExprAST>, rhs: &Box<ExprAST>) -> String {
         let left = {
             let (is, precidence) = lhs.get_precidence();
             let mut tmp: String = lhs.expr();
@@ -270,9 +266,9 @@ impl ExprAST {
 
     fn ternary_expr(
         &self,
-        condition: Arc<ExprAST>,
-        lhs: Arc<ExprAST>,
-        rhs: Arc<ExprAST>,
+        condition: &Box<ExprAST>,
+        lhs: &Box<ExprAST>,
+        rhs: &Box<ExprAST>,
     ) -> String {
         let condition_expr = match condition.as_ref() {
             ExprAST::Binary(_, _, _) | ExprAST::Ternary(_, _, _) => {
@@ -447,7 +443,7 @@ impl<'a> AST<'a> {
             if tok_prec < next_prec {
                 rhs = self.parse_binop(tok_prec + 1, rhs)?;
             }
-            lhs = ExprAST::Binary(op, Arc::new(lhs), Arc::new(rhs))
+            lhs = ExprAST::Binary(op, Box::new(lhs), Box::new(rhs))
         }
     }
 
@@ -460,9 +456,9 @@ impl<'a> AST<'a> {
         self.next()?;
         let rhs = self.parse_primary()?;
         Ok(ExprAST::Ternary(
-            Arc::new(condition),
-            Arc::new(lhs),
-            Arc::new(rhs),
+            Box::new(condition),
+            Box::new(lhs),
+            Box::new(rhs),
         ))
     }
 
@@ -534,7 +530,7 @@ impl<'a> AST<'a> {
 
     fn parse_operator(&mut self, op: String) -> Result<ExprAST> {
         self.next()?;
-        Ok(ExprAST::Unary(op, Arc::new(self.parse_primary()?)))
+        Ok(ExprAST::Unary(op, Box::new(self.parse_primary()?)))
     }
 
     fn parse_function(&mut self, name: String) -> Result<ExprAST> {
@@ -545,7 +541,7 @@ impl<'a> AST<'a> {
             self.next()?;
             return Ok(ExprAST::Function(name, ans));
         }
-        let mut has_right_paren = false;
+        let has_right_paren;
         loop {
             ans.push(self.parse_expression()?);
             if self.cur_tok().is_right_paren() {
@@ -564,7 +560,7 @@ impl<'a> AST<'a> {
 
 #[test]
 fn test() {
-    let input = "{1:2+3*2};1+2*3";
+    let input = "true in [1,2,3,true]";
     let ast = AST::new(input);
     match ast {
         Ok(mut a) => {
@@ -579,7 +575,7 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "\"abcdsaf\" endWith \"acd\"";
+    let input = "true in [1,2,3,true]";
     let ast = AST::new(input);
     let mut ctx = Context::new();
     ctx.set_variable(&"mm".to_string(), Value::from(12.0_f64));

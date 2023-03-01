@@ -379,7 +379,7 @@ impl UnaryOpFuncManager {
             "!".to_string(),
             Arc::new(|param| {
                 let a = match param {
-                    Value::Bool(a) => a,
+                    Value::Bool(value) => !value,
                     _ => return Err(Error::ShouldBeBool()),
                 };
                 Ok(Value::Bool(a))
