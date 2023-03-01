@@ -82,6 +82,13 @@ impl Token {
         }
     }
 
+    pub fn is_semicolon(&self) -> bool {
+        match self {
+            Self::Semicolon(_, _) => true,
+            _ => false,
+        }
+    }
+
     pub fn string(&self) -> String {
         match self {
             Self::Bracket(bracket, _) => bracket.clone(),

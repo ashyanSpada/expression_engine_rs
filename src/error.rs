@@ -26,6 +26,7 @@ pub enum Error {
     InvalidTernaryExprNeedColon(),
     ExpectedOpNotExist(String),
     WrongContextValueType(),
+    UnexpectedToken(),
 }
 
 impl fmt::Display for Error {
@@ -57,6 +58,7 @@ impl fmt::Display for Error {
             Self::ParamInvalid() => write!(f, "param invalid"),
             Self::ShouldBeString() => write!(f, "should be string"),
             Self::WrongContextValueType() => write!(f, "wrong context value type"),
+            Self::UnexpectedToken() => write!(f, "unexpected token"),
         }
     }
 }

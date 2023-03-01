@@ -22,11 +22,12 @@ impl Context {
             .insert(name.clone(), ContextValue::Function(func.clone()));
     }
 
-    pub fn set_variable(&mut self, name: &String, value: Value) {
-        self.0.insert(name.clone(), ContextValue::Variable(value));
+    pub fn set_variable(&mut self, name: &str, value: Value) {
+        self.0
+            .insert(name.to_string(), ContextValue::Variable(value));
     }
 
-    pub fn get_func(&self, name: &String) -> Option<Arc<InnerFunction>> {
+    pub fn get_func(&self, name: &str) -> Option<Arc<InnerFunction>> {
         let value = self.0.get(name)?;
         match value {
             ContextValue::Function(func) => Some(func.clone()),

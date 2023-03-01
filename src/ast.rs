@@ -71,7 +71,7 @@ impl fmt::Display for ExprAST {
                 for (k, v) in m {
                     s.push_str(format!("({} {}), ", k.clone(), v.clone()).as_str());
                 }
-                write!(f, "MAP AST: {}", s)
+                write!(f, "Map AST: {}", s)
             }
             Self::Chain(exprs) => {
                 let mut s = String::new();
@@ -119,9 +119,9 @@ impl ExprAST {
         Ok(Value::String(val))
     }
 
-    fn exec_reference(&self, name: &String, ctx: Arc<Context>) -> Result<Value> {
+    fn exec_reference(&self, name: &str, ctx: Arc<Context>) -> Result<Value> {
         match ctx.get_variable(name) {
-            Some(value) => Ok(value),
+            Some(value) => Ok(Value::Pair(name.to_string(), Box::new(value))),
             None => Err(Error::WrongContextValueType()),
         }
     }
@@ -364,16 +364,14 @@ impl<'a> AST<'a> {
     }
 
     pub fn next(&mut self) -> Result<Token> {
-        self.tokenizer.next()?;
-        println!("call next curTok is {}", self.cur_tok());
-        Ok(self.cur_tok())
+        self.tokenizer.next()
     }
 
     fn peek(&self) -> Result<Token> {
         self.tokenizer.peek()
     }
 
-    fn expect(&mut self, expected: String) -> Result<()> {
+    fn expect(&mut self, expected: &str) -> Result<()> {
         self.tokenizer.expect(expected)
     }
 
@@ -388,7 +386,6 @@ impl<'a> AST<'a> {
                 self.next()?;
                 Ok(ExprAST::Bool(val))
             }
-            Token::Comma(_, _) => Err(Error::NoLeftBrace(1)),
             Token::String(val, _) => {
                 self.next()?;
                 Ok(ExprAST::String(val))
@@ -400,33 +397,34 @@ impl<'a> AST<'a> {
             Token::Function(name, _) => self.parse_function(name),
             Token::Operator(op, _) => self.parse_operator(op),
             Token::Bracket(_, _) => self.parse_bracket(),
-            Token::Semicolon(_, _) => self.parse_semicolon(),
             Token::EOF => Ok(ExprAST::None),
+            _ => Err(Error::UnexpectedToken()),
         }
     }
 
     pub fn parse_expression(&mut self) -> Result<ExprAST> {
-        let lhs = self.parse_primary()?;
-        if !self.cur_tok().is_op_token() {
-            return Ok(lhs);
+        let mut ans = Vec::new();
+        loop {
+            let lhs = self.parse_primary()?;
+            if !self.cur_tok().is_op_token() {
+                ans.push(lhs);
+            } else {
+                ans.push(self.parse_op(lhs)?);
+            }
+            if !self.cur_tok().is_semicolon() {
+                println!("cur_tok is {}", self.cur_tok());
+                break;
+            }
+            self.next()?;
         }
-        let expr = self.parse_op(lhs)?;
-        Ok(expr)
+        if ans.len() == 1 {
+            return Ok(ans[0].clone());
+        }
+        Ok(ExprAST::Chain(ans))
     }
 
     fn parse_primary(&mut self) -> Result<ExprAST> {
-        let expr = self.parse_token()?;
-        // match expr {
-        //     ExprAST::Number(_)
-        //     | ExprAST::String(_)
-        //     | ExprAST::Bool(_)
-        //     // | ExprAST::Function(_, _)
-        //     | ExprAST::Reference(_) => {
-        //         self.next()?;
-        //     }
-        //     _ => {}
-        // }
-        Ok(expr)
+        Ok(self.parse_token()?)
     }
 
     fn parse_op(&mut self, lhs: ExprAST) -> Result<ExprAST> {
@@ -439,7 +437,6 @@ impl<'a> AST<'a> {
     fn parse_binop(&mut self, exec_prec: i32, mut lhs: ExprAST) -> Result<ExprAST> {
         loop {
             let tok_prec = self.get_token_precidence();
-            // println!("pre compare, {}, {}, {}", tok_prec, exec_prec, self.cur_tok);
             if tok_prec < exec_prec {
                 return Ok(lhs);
             }
@@ -498,41 +495,41 @@ impl<'a> AST<'a> {
     }
 
     fn parse_left_curly(&mut self) -> Result<ExprAST> {
-        let mut m = Vec::new();
         self.next()?;
+        let mut m = Vec::new();
+        if self.cur_tok().is_right_curly() {
+            return Ok(ExprAST::Map(m));
+        }
         loop {
             let k = self.parse_primary()?;
-            self.expect(":".to_string())?;
-            self.next()?;
+            self.expect(":")?;
             let v = self.parse_expression()?;
             m.push((k, v));
             if self.cur_tok().is_right_curly() {
                 self.next()?;
                 break;
             }
-            self.expect(",".to_string())?;
-            self.next()?;
+            self.expect(",")?;
         }
         Ok(ExprAST::Map(m))
     }
 
     fn parse_left_bracket(&mut self) -> Result<ExprAST> {
-        let mut exprs = Vec::new();
         self.next()?;
+        let mut exprs = Vec::new();
+        if self.cur_tok().is_right_bracket() {
+            self.next()?;
+            return Ok(ExprAST::List(exprs));
+        }
         loop {
             exprs.push(self.parse_expression()?);
             if self.cur_tok().is_right_bracket() {
                 self.next()?;
                 break;
             }
-            self.expect(",".to_string())?;
-            self.next()?;
+            self.expect(",")?;
         }
         Ok(ExprAST::List(exprs))
-    }
-
-    fn parse_semicolon(&mut self) -> Result<ExprAST> {
-        Err(Error::NoLeftBrace(1))
     }
 
     fn parse_operator(&mut self, op: String) -> Result<ExprAST> {
@@ -541,48 +538,33 @@ impl<'a> AST<'a> {
     }
 
     fn parse_function(&mut self, name: String) -> Result<ExprAST> {
-        let next = self.next()?;
-        println!("next is {}", next);
-        if !next.is_left_paren() {
-            print!("hahah");
-            return Err(Error::NoLeftBrace(1));
-        }
         self.next()?;
+        self.expect("(")?;
         let mut ans = Vec::new();
-        let mut has_right_brace = false;
         if self.cur_tok().is_right_paren() {
             self.next()?;
             return Ok(ExprAST::Function(name, ans));
         }
+        let mut has_right_paren = false;
         loop {
-            println!("loop, curTok: {}", self.cur_tok());
             ans.push(self.parse_expression()?);
-            println!(
-                "pre tok is {}, {}, {}",
-                ans.last().unwrap(),
-                self.cur_tok(),
-                self.cur_tok().is_eof()
-            );
             if self.cur_tok().is_right_paren() {
-                has_right_brace = true;
+                has_right_paren = true;
                 self.next()?;
                 break;
             }
-            println!("cur tok is {}, {}", self.cur_tok(), self.cur_tok().is_eof());
-            self.expect(",".to_string())?;
-            self.next()?;
+            self.expect(",")?;
         }
-        if !has_right_brace {
+        if !has_right_paren {
             return Err(Error::NoRightBrace(0));
         }
-        println!("func parsed: {}", self.cur_tok());
         Ok(ExprAST::Function(name, ans))
     }
 }
 
 #[test]
 fn test() {
-    let input = "[func(true,1+2+3*(5+6)),2,5,6+5]";
+    let input = "{1:2+3*2};1+2*3";
     let ast = AST::new(input);
     match ast {
         Ok(mut a) => {

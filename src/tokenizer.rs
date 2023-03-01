@@ -46,8 +46,8 @@ impl<'a> Tokenizer<'a> {
             Some((start, '(' | ')' | '[' | ']' | '{' | '}')) => self.bracket_token(start),
             Some((start, _ch @ '0'..='9')) => self.number_token(start),
             Some((start, '"' | '\'')) => self.string_token(start),
-            Some((start, ',')) => self.comma_token(start),
             Some((start, ';')) => self.semicolon_token(start),
+            Some((start, ',')) => self.comma_token(start),
             None => Ok(Token::EOF),
             Some((start, ch)) => self.other_token(ch, start),
         }?;
@@ -69,9 +69,9 @@ impl<'a> Tokenizer<'a> {
         self.clone().next()
     }
 
-    pub fn expect(&mut self, op: String) -> Result<()> {
+    pub fn expect(&mut self, op: &str) -> Result<()> {
         let token = self.cur_token.clone();
-        println!("expect: {}, cur: {}", op, self.cur_token.clone());
+        self.next()?;
         match token {
             Token::Bracket(bracket, _) => {
                 if bracket == op {
@@ -89,7 +89,7 @@ impl<'a> Tokenizer<'a> {
                 }
             }
             _ => {
-                return Err(Error::ExpectedOpNotExist(op));
+                return Err(Error::ExpectedOpNotExist(op.to_string()));
             }
         }
         Ok(())
@@ -195,41 +195,6 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    // fn refrence_token(&mut self, start: usize) -> Result<Option<Token>> {
-    //     'outer: loop {
-    //         match self.peek_one() {
-    //             Some((_, ch)) => {
-    //                 if is_param_char(ch) {
-    //                     self.next_one();
-    //                 } else {
-    //                     break 'outer
-    //                 }
-    //             }
-    //             None => break 'outer,
-    //         }
-    //     }
-    //     if self.current() - start <= 1 {
-    //         return Err(Error::UnexpectedEOF(self.current()));
-    //     }
-    //     Ok(Some(Token::Reference(self.input[start+1..self.current()].to_owned(), Span(start, self.current()))))
-    // }
-
-    // fn function_token(&mut self, start: usize) -> Result<Option<Token>> {
-    //     loop {
-    //         match self.peek_one() {
-    //             Some((_, ch)) => {
-    //                 if is_param_char(ch) {
-    //                     self.next_one();
-    //                 } else {
-    //                     break
-    //                 }
-    //             },
-    //             None => break
-    //         }
-    //     }
-    //     Ok(Some(Token::Function(self.input[start+1..self.current()].to_owned(), Span(start, self.current()))))
-    // }
-
     fn string_token(&mut self, start: usize) -> Result<Token> {
         let identifier = self.cur_char;
         let mut string_termmited = false;
@@ -325,7 +290,7 @@ fn is_operator_char(ch: char) -> bool {
 
 #[test]
 fn test() {
-    let input = "\"abcdsaf\" endsWith \'acd\'";
+    let input = "{1:2+3*2};";
     let mut tokenizer = Tokenizer::new(input);
     loop {
         match tokenizer.next() {
