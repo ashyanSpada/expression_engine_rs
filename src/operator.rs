@@ -9,8 +9,14 @@ type BinaryOpFunc = dyn Fn(Value, Value) -> Result<Value> + Send + Sync + 'stati
 
 type UnaryOpFunc = dyn Fn(Value) -> Result<Value> + Send + Sync + 'static;
 
+#[derive(Clone)]
+pub enum BinOpType {
+    CALC,
+    SETTER,
+}
+
 pub struct BinaryOpFuncManager {
-    store: &'static Mutex<HashMap<String, (i32, Arc<BinaryOpFunc>)>>,
+    store: &'static Mutex<HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)>>,
 }
 
 pub struct UnaryOpFuncManager {
@@ -19,18 +25,20 @@ pub struct UnaryOpFuncManager {
 
 impl BinaryOpFuncManager {
     pub fn new() -> Self {
-        static STORE: OnceCell<Mutex<HashMap<String, (i32, Arc<BinaryOpFunc>)>>> = OnceCell::new();
+        static STORE: OnceCell<Mutex<HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)>>> =
+            OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(Self::internal_register(HashMap::new())));
         BinaryOpFuncManager { store: store }
     }
 
     fn internal_register(
-        mut m: HashMap<String, (i32, Arc<BinaryOpFunc>)>,
-    ) -> HashMap<String, (i32, Arc<BinaryOpFunc>)> {
+        mut m: HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)>,
+    ) -> HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)> {
         m.insert(
             "+".to_string(),
             (
                 60,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Number(a) => a,
@@ -49,6 +57,7 @@ impl BinaryOpFuncManager {
             "-".to_string(),
             (
                 60,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Number(a) => a,
@@ -67,6 +76,7 @@ impl BinaryOpFuncManager {
             "in".to_string(),
             (
                 100,
+                BinOpType::CALC,
                 Arc::new(|left, right| match right {
                     Value::List(params) => {
                         for target in params {
@@ -93,6 +103,7 @@ impl BinaryOpFuncManager {
             "beginWith".to_string(),
             (
                 120,
+                BinOpType::CALC,
                 Arc::new(|left, right| match left {
                     Value::String(s) => match right {
                         Value::String(t) => {
@@ -112,6 +123,7 @@ impl BinaryOpFuncManager {
             "endWith".to_string(),
             (
                 120,
+                BinOpType::CALC,
                 Arc::new(|left, right| match left {
                     Value::String(s) => match right {
                         Value::String(t) => {
@@ -131,6 +143,7 @@ impl BinaryOpFuncManager {
             "*".to_string(),
             (
                 80,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Number(a) => a,
@@ -149,6 +162,7 @@ impl BinaryOpFuncManager {
             "/".to_string(),
             (
                 80,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Number(a) => a,
@@ -167,6 +181,7 @@ impl BinaryOpFuncManager {
             "%".to_string(),
             (
                 80,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Number(a) => a,
@@ -185,6 +200,7 @@ impl BinaryOpFuncManager {
             "&&".to_string(),
             (
                 40,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Bool(a) => a,
@@ -203,6 +219,7 @@ impl BinaryOpFuncManager {
             "||".to_string(),
             (
                 40,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Bool(a) => a,
@@ -219,18 +236,27 @@ impl BinaryOpFuncManager {
 
         m.insert(
             "==".to_string(),
-            (20, Arc::new(|left, right| Ok(Value::Bool(left == right)))),
+            (
+                20,
+                BinOpType::CALC,
+                Arc::new(|left, right| Ok(Value::Bool(left == right))),
+            ),
         );
 
         m.insert(
             "!=".to_string(),
-            (20, Arc::new(|left, right| Ok(Value::Bool(left != right)))),
+            (
+                20,
+                BinOpType::CALC,
+                Arc::new(|left, right| Ok(Value::Bool(left != right))),
+            ),
         );
 
         m.insert(
             ">".to_string(),
             (
                 80,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Number(a) => a,
@@ -249,6 +275,7 @@ impl BinaryOpFuncManager {
             ">=".to_string(),
             (
                 80,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Number(a) => a,
@@ -267,6 +294,7 @@ impl BinaryOpFuncManager {
             "<".to_string(),
             (
                 80,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Number(a) => a,
@@ -285,6 +313,7 @@ impl BinaryOpFuncManager {
             "<=".to_string(),
             (
                 80,
+                BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
                         Value::Number(a) => a,
@@ -302,8 +331,17 @@ impl BinaryOpFuncManager {
         m
     }
 
-    pub fn register(&mut self, op: String, precidence: i32, f: Arc<BinaryOpFunc>) {
-        self.store.lock().unwrap().insert(op, (precidence, f));
+    pub fn register(
+        &mut self,
+        op: &str,
+        op_type: BinOpType,
+        precidence: i32,
+        f: Arc<BinaryOpFunc>,
+    ) {
+        self.store
+            .lock()
+            .unwrap()
+            .insert(op.to_string(), (precidence, op_type, f));
     }
 
     pub fn get(&self, op: &str) -> Result<Arc<BinaryOpFunc>> {
@@ -312,7 +350,7 @@ impl BinaryOpFuncManager {
         if ans.is_none() {
             return Err(Error::BinaryOpNotRegistered(op.to_string()));
         }
-        Ok(ans.unwrap().1.clone())
+        Ok(ans.unwrap().2.clone())
     }
 
     pub fn get_precidence(&self, op: &str) -> i32 {
@@ -328,6 +366,15 @@ impl BinaryOpFuncManager {
         let func = self.store.lock().unwrap().get(target).unwrap().clone();
         let mut binding = self.store.lock().unwrap();
         binding.insert(source.to_string(), func);
+    }
+
+    pub fn get_op_type(&self, op: &str) -> Result<BinOpType> {
+        let binding = self.store.lock().unwrap();
+        let ans = binding.get(op);
+        if ans.is_none() {
+            return Err(Error::BinaryOpNotRegistered(op.to_string()));
+        }
+        Ok(ans.unwrap().1.clone())
     }
 }
 

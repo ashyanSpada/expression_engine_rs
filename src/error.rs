@@ -27,6 +27,7 @@ pub enum Error {
     ExpectedOpNotExist(String),
     WrongContextValueType(),
     UnexpectedToken(),
+    NotReferenceExpr,
 }
 
 impl fmt::Display for Error {
@@ -59,6 +60,7 @@ impl fmt::Display for Error {
             Self::ShouldBeString() => write!(f, "should be string"),
             Self::WrongContextValueType() => write!(f, "wrong context value type"),
             Self::UnexpectedToken() => write!(f, "unexpected token"),
+            Self::NotReferenceExpr => write!(f, "not reference expr"),
         }
     }
 }

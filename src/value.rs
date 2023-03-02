@@ -8,7 +8,6 @@ pub enum Value {
     Bool(bool),
     List(Vec<Value>),
     Map(Vec<(Value, Value)>),
-    Pair(String, Box<Value>),
     None,
 }
 
@@ -34,9 +33,6 @@ impl fmt::Display for Value {
                 }
                 s.push_str("}");
                 write!(f, "value map: {}", s)
-            }
-            Self::Pair(key, value) => {
-                write!(f, "value pair: key: {}, value: {}", key, value)
             }
             Self::None => write!(f, "None"),
         }

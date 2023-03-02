@@ -2,7 +2,7 @@ use crate::context::Context;
 use crate::define::*;
 use crate::error::Error;
 use crate::function::InnerFunctionManager;
-use crate::operator::{BinaryOpFuncManager, UnaryOpFuncManager};
+use crate::operator::{BinOpType, BinaryOpFuncManager, UnaryOpFuncManager};
 use crate::token::Token;
 use crate::tokenizer::Tokenizer;
 use crate::value::Value;
@@ -119,7 +119,7 @@ impl ExprAST {
 
     fn exec_reference(&self, name: &str, ctx: Arc<Context>) -> Result<Value> {
         match ctx.get_variable(name) {
-            Some(value) => Ok(Value::Pair(name.to_string(), Box::new(value))),
+            Some(value) => Ok(value),
             None => Err(Error::WrongContextValueType()),
         }
     }
@@ -155,7 +155,21 @@ impl ExprAST {
         rhs: &Box<ExprAST>,
         ctx: Arc<Context>,
     ) -> Result<Value> {
-        BinaryOpFuncManager::new().get(&op)?(lhs.exec(ctx.clone())?, rhs.exec(ctx.clone())?)
+        match BinaryOpFuncManager::new().get_op_type(&op)? {
+            BinOpType::CALC => {
+                BinaryOpFuncManager::new().get(&op)?(lhs.exec(ctx.clone())?, rhs.exec(ctx.clone())?)
+            }
+            BinOpType::SETTER => {
+                ctx.set_variable(
+                    lhs.get_reference_name()?.as_str(),
+                    BinaryOpFuncManager::new().get(&op)?(
+                        lhs.exec(ctx.clone())?,
+                        rhs.exec(ctx.clone())?,
+                    )?,
+                );
+                Ok(Value::None)
+            }
+        }
     }
 
     fn exec_ternary(
@@ -332,6 +346,13 @@ impl ExprAST {
         match self {
             ExprAST::Binary(op, _, _) => (true, BinaryOpFuncManager::new().get_precidence(op)),
             _ => (false, 0),
+        }
+    }
+
+    fn get_reference_name(&self) -> Result<String> {
+        match self {
+            &ExprAST::Reference(name) => Ok(name.clone()),
+            _ => Err(Error::NotReferenceExpr),
         }
     }
 }
