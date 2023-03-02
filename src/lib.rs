@@ -7,13 +7,12 @@ mod keyword;
 mod operator;
 mod token;
 mod tokenizer;
-use std::sync::Arc;
 #[macro_use]
 mod value;
 mod context;
 
-pub fn execute(expr: &str, ctx: context::Context) -> define::Result<value::Value> {
-    ast::AST::new(expr)?.parse_expression()?.exec(Arc::new(ctx))
+pub fn execute(expr: &str, mut ctx: context::Context) -> define::Result<value::Value> {
+    ast::AST::new(expr)?.parse_expression()?.exec(&mut ctx)
 }
 
 pub type Value = value::Value;

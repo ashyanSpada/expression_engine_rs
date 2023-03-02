@@ -86,21 +86,19 @@ impl fmt::Display for ExprAST {
 }
 
 impl ExprAST {
-    pub fn exec(&self, ctx: Arc<Context>) -> Result<Value> {
+    pub fn exec(&self, ctx: &mut Context) -> Result<Value> {
         match self {
             Self::Bool(val) => self.exec_bool(val.clone()),
             Self::Number(val) => self.exec_number(val.clone()),
             Self::String(val) => self.exec_string(val.clone()),
-            Self::Reference(name) => self.exec_reference(name, ctx.clone()),
-            Self::Function(name, exprs) => self.exec_function(name, exprs.clone(), ctx.clone()),
-            Self::Unary(op, rhs) => self.exec_unary(op.clone(), rhs, ctx.clone()),
-            Self::Binary(op, lhs, rhs) => self.exec_binary(op.clone(), lhs, rhs, ctx.clone()),
-            Self::Ternary(condition, lhs, rhs) => {
-                self.exec_ternary(condition, lhs, rhs, ctx.clone())
-            }
-            Self::List(params) => self.exec_list(params.clone(), ctx.clone()),
-            Self::Chain(exprs) => self.exec_list(exprs.clone(), ctx.clone()),
-            Self::Map(m) => self.exec_map(m.clone(), ctx.clone()),
+            Self::Reference(name) => self.exec_reference(name, ctx),
+            Self::Function(name, exprs) => self.exec_function(name, exprs.clone(), ctx),
+            Self::Unary(op, rhs) => self.exec_unary(op.clone(), rhs, ctx),
+            Self::Binary(op, lhs, rhs) => self.exec_binary(op.clone(), lhs, rhs, ctx),
+            Self::Ternary(condition, lhs, rhs) => self.exec_ternary(condition, lhs, rhs, ctx),
+            Self::List(params) => self.exec_list(params.clone(), ctx),
+            Self::Chain(exprs) => self.exec_chain(exprs.clone(), ctx),
+            Self::Map(m) => self.exec_map(m.clone(), ctx),
             Self::None => Ok(Value::None),
         }
     }
@@ -117,10 +115,10 @@ impl ExprAST {
         Ok(Value::String(val))
     }
 
-    fn exec_reference(&self, name: &str, ctx: Arc<Context>) -> Result<Value> {
+    fn exec_reference(&self, name: &str, ctx: &Context) -> Result<Value> {
         match ctx.get_variable(name) {
             Some(value) => Ok(value),
-            None => Err(Error::WrongContextValueType()),
+            None => Ok(Value::None),
         }
     }
 
@@ -128,11 +126,11 @@ impl ExprAST {
         &self,
         name: &String,
         exprs: Vec<ExprAST>,
-        ctx: Arc<Context>,
+        ctx: &mut Context,
     ) -> Result<Value> {
         let mut params: Vec<Value> = Vec::new();
         for expr in exprs.into_iter() {
-            params.push(expr.exec(ctx.clone())?)
+            params.push(expr.exec(ctx)?)
         }
         match ctx.get_func(name) {
             Some(func) => func(params),
@@ -144,7 +142,7 @@ impl ExprAST {
         InnerFunctionManager::new().get(name)?(params)
     }
 
-    fn exec_unary(&self, op: String, rhs: &Box<ExprAST>, ctx: Arc<Context>) -> Result<Value> {
+    fn exec_unary(&self, op: String, rhs: &Box<ExprAST>, ctx: &mut Context) -> Result<Value> {
         UnaryOpFuncManager::new().get(&op)?(rhs.exec(ctx)?)
     }
 
@@ -153,19 +151,15 @@ impl ExprAST {
         op: String,
         lhs: &Box<ExprAST>,
         rhs: &Box<ExprAST>,
-        ctx: Arc<Context>,
+        ctx: &mut Context,
     ) -> Result<Value> {
         match BinaryOpFuncManager::new().get_op_type(&op)? {
-            BinOpType::CALC => {
-                BinaryOpFuncManager::new().get(&op)?(lhs.exec(ctx.clone())?, rhs.exec(ctx.clone())?)
-            }
+            BinOpType::CALC => BinaryOpFuncManager::new().get(&op)?(lhs.exec(ctx)?, rhs.exec(ctx)?),
             BinOpType::SETTER => {
+                let (a, b) = (lhs.exec(ctx)?, rhs.exec(ctx)?);
                 ctx.set_variable(
                     lhs.get_reference_name()?.as_str(),
-                    BinaryOpFuncManager::new().get(&op)?(
-                        lhs.exec(ctx.clone())?,
-                        rhs.exec(ctx.clone())?,
-                    )?,
+                    BinaryOpFuncManager::new().get(&op)?(a, b)?,
                 );
                 Ok(Value::None)
             }
@@ -177,31 +171,39 @@ impl ExprAST {
         condition: &Box<ExprAST>,
         lhs: &Box<ExprAST>,
         rhs: &Box<ExprAST>,
-        ctx: Arc<Context>,
+        ctx: &mut Context,
     ) -> Result<Value> {
-        match condition.exec(ctx.clone())? {
+        match condition.exec(ctx)? {
             Value::Bool(val) => {
                 if val {
-                    return lhs.exec(ctx.clone());
+                    return lhs.exec(ctx);
                 }
-                rhs.exec(ctx.clone())
+                rhs.exec(ctx)
             }
             _ => Err(Error::ShouldBeBool()),
         }
     }
 
-    fn exec_list(&self, params: Vec<ExprAST>, ctx: Arc<Context>) -> Result<Value> {
+    fn exec_list(&self, params: Vec<ExprAST>, ctx: &mut Context) -> Result<Value> {
         let mut ans = Vec::new();
         for expr in params {
-            ans.push(expr.exec(ctx.clone())?);
+            ans.push(expr.exec(ctx)?);
         }
         Ok(Value::List(ans))
     }
 
-    fn exec_map(&self, m: Vec<(ExprAST, ExprAST)>, ctx: Arc<Context>) -> Result<Value> {
+    fn exec_chain(&self, params: Vec<ExprAST>, ctx: &mut Context) -> Result<Value> {
+        let mut ans = Value::None;
+        for expr in params {
+            ans = expr.exec(ctx)?;
+        }
+        Ok(ans)
+    }
+
+    fn exec_map(&self, m: Vec<(ExprAST, ExprAST)>, ctx: &mut Context) -> Result<Value> {
         let mut ans = Vec::new();
         for (k, v) in m {
-            ans.push((k.exec(ctx.clone())?, v.exec(ctx.clone())?));
+            ans.push((k.exec(ctx)?, v.exec(ctx)?));
         }
         Ok(Value::Map(ans))
     }
@@ -350,8 +352,8 @@ impl ExprAST {
     }
 
     fn get_reference_name(&self) -> Result<String> {
-        match self {
-            &ExprAST::Reference(name) => Ok(name.clone()),
+        match &self {
+            ExprAST::Reference(name) => Ok(name.clone()),
             _ => Err(Error::NotReferenceExpr),
         }
     }
@@ -594,7 +596,7 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "mm + 5";
+    let input = "m=mm + 5;c=m+2-1*3;c";
     let ast = AST::new(input);
     let mut ctx = Context::new();
     ctx.set_variable("mm", Value::from(12.0_f64));
@@ -603,7 +605,7 @@ fn test_exec() {
             let expr = a.parse_expression().unwrap();
             println!("expr is {}", expr);
             println!("string is {}", expr.expr());
-            let ans = expr.exec(Arc::new(ctx)).unwrap();
+            let ans = expr.exec(&mut ctx).unwrap();
             println!("ans is {}", ans);
         }
         Err(e) => {

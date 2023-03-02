@@ -15,7 +15,7 @@ impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::String(val) => write!(f, "value string: {}", val.clone()),
-            Self::Number(val) => write!(f, "value literal: {}", val.clone()),
+            Self::Number(val) => write!(f, "value number: {}", val.clone()),
             Self::Bool(val) => write!(f, "value bool: {}", val.clone()),
             Self::List(values) => {
                 let mut s = String::from("[");

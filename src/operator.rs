@@ -35,47 +35,9 @@ impl BinaryOpFuncManager {
         mut m: HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)>,
     ) -> HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)> {
         m.insert(
-            "+".to_string(),
-            (
-                60,
-                BinOpType::CALC,
-                Arc::new(|left, right| {
-                    let a = match left {
-                        Value::Number(a) => a,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    let b = match right {
-                        Value::Number(b) => b,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    Ok(Value::Number(a + b))
-                }),
-            ),
-        );
-
-        m.insert(
-            "-".to_string(),
-            (
-                60,
-                BinOpType::CALC,
-                Arc::new(|left, right| {
-                    let a = match left {
-                        Value::Number(a) => a,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    let b = match right {
-                        Value::Number(b) => b,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    Ok(Value::Number(a - b))
-                }),
-            ),
-        );
-
-        m.insert(
             "in".to_string(),
             (
-                100,
+                200,
                 BinOpType::CALC,
                 Arc::new(|left, right| match right {
                     Value::List(params) => {
@@ -102,7 +64,7 @@ impl BinaryOpFuncManager {
         m.insert(
             "beginWith".to_string(),
             (
-                120,
+                200,
                 BinOpType::CALC,
                 Arc::new(|left, right| match left {
                     Value::String(s) => match right {
@@ -122,7 +84,7 @@ impl BinaryOpFuncManager {
         m.insert(
             "endWith".to_string(),
             (
-                120,
+                200,
                 BinOpType::CALC,
                 Arc::new(|left, right| match left {
                     Value::String(s) => match right {
@@ -142,7 +104,7 @@ impl BinaryOpFuncManager {
         m.insert(
             "*".to_string(),
             (
-                80,
+                120,
                 BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
@@ -161,7 +123,7 @@ impl BinaryOpFuncManager {
         m.insert(
             "/".to_string(),
             (
-                80,
+                120,
                 BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
@@ -180,7 +142,7 @@ impl BinaryOpFuncManager {
         m.insert(
             "%".to_string(),
             (
-                80,
+                120,
                 BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
@@ -197,9 +159,141 @@ impl BinaryOpFuncManager {
         );
 
         m.insert(
+            "+".to_string(),
+            (
+                110,
+                BinOpType::CALC,
+                Arc::new(|left, right| {
+                    let a = match left {
+                        Value::Number(a) => a,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    let b = match right {
+                        Value::Number(b) => b,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    Ok(Value::Number(a + b))
+                }),
+            ),
+        );
+
+        m.insert(
+            "-".to_string(),
+            (
+                110,
+                BinOpType::CALC,
+                Arc::new(|left, right| {
+                    let a = match left {
+                        Value::Number(a) => a,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    let b = match right {
+                        Value::Number(b) => b,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    Ok(Value::Number(a - b))
+                }),
+            ),
+        );
+
+        m.insert(
+            "==".to_string(),
+            (
+                60,
+                BinOpType::CALC,
+                Arc::new(|left, right| Ok(Value::Bool(left == right))),
+            ),
+        );
+
+        m.insert(
+            "!=".to_string(),
+            (
+                60,
+                BinOpType::CALC,
+                Arc::new(|left, right| Ok(Value::Bool(left != right))),
+            ),
+        );
+
+        m.insert(
+            ">".to_string(),
+            (
+                60,
+                BinOpType::CALC,
+                Arc::new(|left, right| {
+                    let a = match left {
+                        Value::Number(a) => a,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    let b = match right {
+                        Value::Number(b) => b,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    Ok(Value::Bool(a > b))
+                }),
+            ),
+        );
+
+        m.insert(
+            ">=".to_string(),
+            (
+                60,
+                BinOpType::CALC,
+                Arc::new(|left, right| {
+                    let a = match left {
+                        Value::Number(a) => a,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    let b = match right {
+                        Value::Number(b) => b,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    Ok(Value::Bool(a >= b))
+                }),
+            ),
+        );
+
+        m.insert(
+            "<".to_string(),
+            (
+                60,
+                BinOpType::CALC,
+                Arc::new(|left, right| {
+                    let a = match left {
+                        Value::Number(a) => a,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    let b = match right {
+                        Value::Number(b) => b,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    Ok(Value::Bool(a < b))
+                }),
+            ),
+        );
+
+        m.insert(
+            "<=".to_string(),
+            (
+                60,
+                BinOpType::CALC,
+                Arc::new(|left, right| {
+                    let a = match left {
+                        Value::Number(a) => a,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    let b = match right {
+                        Value::Number(b) => b,
+                        _ => return Err(Error::ShouldBeNumber()),
+                    };
+                    Ok(Value::Bool(a <= b))
+                }),
+            ),
+        );
+
+        m.insert(
             "&&".to_string(),
             (
-                40,
+                50,
                 BinOpType::CALC,
                 Arc::new(|left, right| {
                     let a = match left {
@@ -235,97 +329,8 @@ impl BinaryOpFuncManager {
         );
 
         m.insert(
-            "==".to_string(),
-            (
-                20,
-                BinOpType::CALC,
-                Arc::new(|left, right| Ok(Value::Bool(left == right))),
-            ),
-        );
-
-        m.insert(
-            "!=".to_string(),
-            (
-                20,
-                BinOpType::CALC,
-                Arc::new(|left, right| Ok(Value::Bool(left != right))),
-            ),
-        );
-
-        m.insert(
-            ">".to_string(),
-            (
-                80,
-                BinOpType::CALC,
-                Arc::new(|left, right| {
-                    let a = match left {
-                        Value::Number(a) => a,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    let b = match right {
-                        Value::Number(b) => b,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    Ok(Value::Bool(a > b))
-                }),
-            ),
-        );
-
-        m.insert(
-            ">=".to_string(),
-            (
-                80,
-                BinOpType::CALC,
-                Arc::new(|left, right| {
-                    let a = match left {
-                        Value::Number(a) => a,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    let b = match right {
-                        Value::Number(b) => b,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    Ok(Value::Bool(a >= b))
-                }),
-            ),
-        );
-
-        m.insert(
-            "<".to_string(),
-            (
-                80,
-                BinOpType::CALC,
-                Arc::new(|left, right| {
-                    let a = match left {
-                        Value::Number(a) => a,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    let b = match right {
-                        Value::Number(b) => b,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    Ok(Value::Bool(a < b))
-                }),
-            ),
-        );
-
-        m.insert(
-            "<=".to_string(),
-            (
-                80,
-                BinOpType::CALC,
-                Arc::new(|left, right| {
-                    let a = match left {
-                        Value::Number(a) => a,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    let b = match right {
-                        Value::Number(b) => b,
-                        _ => return Err(Error::ShouldBeNumber()),
-                    };
-                    Ok(Value::Bool(a <= b))
-                }),
-            ),
+            "=".to_string(),
+            (20, BinOpType::SETTER, Arc::new(|left, right| Ok(right))),
         );
 
         m
