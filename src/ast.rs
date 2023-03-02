@@ -141,11 +141,11 @@ impl ExprAST {
     }
 
     fn redirect_inner_function(&self, name: &str, params: Vec<Value>) -> Result<Value> {
-        InnerFunctionManager::new().lock().unwrap().get(name)?(params)
+        InnerFunctionManager::new().get(name)?(params)
     }
 
     fn exec_unary(&self, op: String, rhs: &Box<ExprAST>, ctx: Arc<Context>) -> Result<Value> {
-        UnaryOpFuncManager::new().get(op)?(rhs.exec(ctx)?)
+        UnaryOpFuncManager::new().get(&op)?(rhs.exec(ctx)?)
     }
 
     fn exec_binary(
@@ -155,7 +155,7 @@ impl ExprAST {
         rhs: &Box<ExprAST>,
         ctx: Arc<Context>,
     ) -> Result<Value> {
-        BinaryOpFuncManager::new().get(op)?(lhs.exec(ctx.clone())?, rhs.exec(ctx.clone())?)
+        BinaryOpFuncManager::new().get(&op)?(lhs.exec(ctx.clone())?, rhs.exec(ctx.clone())?)
     }
 
     fn exec_ternary(
@@ -248,7 +248,7 @@ impl ExprAST {
         let left = {
             let (is, precidence) = lhs.get_precidence();
             let mut tmp: String = lhs.expr();
-            if is && precidence < BinaryOpFuncManager::new().get_precidence(op.clone()) {
+            if is && precidence < BinaryOpFuncManager::new().get_precidence(op) {
                 tmp = "(".to_string() + &lhs.expr() + &")".to_string();
             }
             tmp
@@ -256,7 +256,7 @@ impl ExprAST {
         let right = {
             let (is, precidence) = rhs.get_precidence();
             let mut tmp = rhs.expr();
-            if is && precidence < BinaryOpFuncManager::new().get_precidence(op.clone()) {
+            if is && precidence < BinaryOpFuncManager::new().get_precidence(op) {
                 tmp = "(".to_string() + &rhs.expr() + &")".to_string();
             }
             tmp
@@ -330,9 +330,7 @@ impl ExprAST {
 
     fn get_precidence(&self) -> (bool, i32) {
         match self {
-            ExprAST::Binary(op, _, _) => {
-                (true, BinaryOpFuncManager::new().get_precidence(op.clone()))
-            }
+            ExprAST::Binary(op, _, _) => (true, BinaryOpFuncManager::new().get_precidence(op)),
             _ => (false, 0),
         }
     }
@@ -464,7 +462,7 @@ impl<'a> AST<'a> {
 
     fn get_token_precidence(&self) -> i32 {
         match &self.cur_tok() {
-            Token::Operator(op, _) => BinaryOpFuncManager::new().get_precidence(op.clone()),
+            Token::Operator(op, _) => BinaryOpFuncManager::new().get_precidence(op),
             _ => -1,
         }
     }
