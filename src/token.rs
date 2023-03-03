@@ -100,27 +100,27 @@ pub fn check_op(token: &Token, expected: &str) -> bool {
 }
 
 impl Token {
-    pub fn is_left_paren(&self) -> bool {
+    pub fn is_open_paren(&self) -> bool {
         check_op(self, "(")
     }
 
-    pub fn is_right_paren(&self) -> bool {
+    pub fn is_close_paren(&self) -> bool {
         check_op(self, ")")
     }
 
-    pub fn is_left_bracket(&self) -> bool {
+    pub fn is_open_bracket(&self) -> bool {
         check_op(self, "[")
     }
 
-    pub fn is_right_bracket(&self) -> bool {
+    pub fn is_close_bracket(&self) -> bool {
         check_op(self, "]")
     }
 
-    pub fn is_left_curly(&self) -> bool {
+    pub fn is_open_brace(&self) -> bool {
         check_op(self, "{")
     }
 
-    pub fn is_right_curly(&self) -> bool {
+    pub fn is_close_brace(&self) -> bool {
         check_op(self, "}")
     }
 

@@ -5,12 +5,6 @@ pub enum Error {
     InvalidNumber(String),
     UnexpectedEOF(usize),
     UnterminatedString(usize),
-    NoLeftBrace(usize),
-    NoRightBrace(usize),
-    NoLeftBracket(usize),
-    NoRightBracket(usize),
-    NoLeftCurly(usize),
-    NoRightCurly(usize),
     InvalidBool(usize),
     NotSupportedChar(usize, char),
     ReferenceNotExist(String),
@@ -28,39 +22,38 @@ pub enum Error {
     WrongContextValueType(),
     UnexpectedToken(),
     NotReferenceExpr,
+    NoOpenDelim,
+    NoCloseDelim,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Error::*;
         match self {
-            Self::InvalidNumber(s) => write!(f, "invalid number: {}", s),
-            Self::UnexpectedEOF(start) => write!(f, "unexpected eof: {}", start),
-            Self::UnterminatedString(start) => write!(f, "unterminated string: {}", start),
-            Self::NoLeftBrace(start) => write!(f, "no left brace: {}", start),
-            Self::NoRightBrace(start) => write!(f, "no right brace: {}", start),
-            Self::NoLeftBracket(start) => write!(f, "no left brace: {}", start),
-            Self::NoRightBracket(start) => write!(f, "no right brace: {}", start),
-            Self::NoLeftCurly(start) => write!(f, "no left brace: {}", start),
-            Self::NoRightCurly(start) => write!(f, "no right brace: {}", start),
-            Self::InvalidBool(start) => write!(f, "invalid bool: {}", start),
-            Self::NotSupportedChar(start, ch) => write!(f, "not supported char: {}, {}", start, ch),
-            Self::ReferenceNotExist(name) => write!(f, "reference not exist: {}", name),
-            Self::FunctionNotExist(name) => write!(f, "function not exist: {}", name),
-            Self::NotSupportedOp(op) => write!(f, "not supported op: {}", op),
-            Self::BinaryOpNotRegistered(op) => write!(f, "binary op not registered: {}", op),
-            Self::UnaryOpNotRegistered(op) => write!(f, "unary op not registered: {}", op),
-            Self::InnerFunctionNotRegistered(name) => {
+            InvalidNumber(s) => write!(f, "invalid number: {}", s),
+            UnexpectedEOF(start) => write!(f, "unexpected eof: {}", start),
+            UnterminatedString(start) => write!(f, "unterminated string: {}", start),
+            InvalidBool(start) => write!(f, "invalid bool: {}", start),
+            NotSupportedChar(start, ch) => write!(f, "not supported char: {}, {}", start, ch),
+            ReferenceNotExist(name) => write!(f, "reference not exist: {}", name),
+            FunctionNotExist(name) => write!(f, "function not exist: {}", name),
+            NotSupportedOp(op) => write!(f, "not supported op: {}", op),
+            BinaryOpNotRegistered(op) => write!(f, "binary op not registered: {}", op),
+            UnaryOpNotRegistered(op) => write!(f, "unary op not registered: {}", op),
+            InnerFunctionNotRegistered(name) => {
                 write!(f, "inner function not registered: {}", name)
             }
-            Self::ShouldBeNumber() => write!(f, "should be number"),
-            Self::ShouldBeBool() => write!(f, "should be bool"),
-            Self::InvalidTernaryExprNeedColon() => write!(f, "invalid ternary expr needs colon"),
-            Self::ExpectedOpNotExist(op) => write!(f, "expected op:{} not exist", op.clone()),
-            Self::ParamInvalid() => write!(f, "param invalid"),
-            Self::ShouldBeString() => write!(f, "should be string"),
-            Self::WrongContextValueType() => write!(f, "wrong context value type"),
-            Self::UnexpectedToken() => write!(f, "unexpected token"),
-            Self::NotReferenceExpr => write!(f, "not reference expr"),
+            ShouldBeNumber() => write!(f, "should be number"),
+            ShouldBeBool() => write!(f, "should be bool"),
+            InvalidTernaryExprNeedColon() => write!(f, "invalid ternary expr needs colon"),
+            ExpectedOpNotExist(op) => write!(f, "expected op:{} not exist", op.clone()),
+            ParamInvalid() => write!(f, "param invalid"),
+            ShouldBeString() => write!(f, "should be string"),
+            WrongContextValueType() => write!(f, "wrong context value type"),
+            UnexpectedToken() => write!(f, "unexpected token"),
+            NotReferenceExpr => write!(f, "not reference expr"),
+            NoOpenDelim => write!(f, "no open delim"),
+            NoCloseDelim => write!(f, "no close delim"),
         }
     }
 }

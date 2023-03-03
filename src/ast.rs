@@ -3,7 +3,7 @@ use crate::define::*;
 use crate::error::Error;
 use crate::function::InnerFunctionManager;
 use crate::operator::{BinOpType, BinaryOpFuncManager, UnaryOpFuncManager};
-use crate::token::Token;
+use crate::token::{DelimTokenType, Token};
 use crate::tokenizer::Tokenizer;
 use crate::value::Value;
 use rust_decimal::prelude::*;
@@ -412,7 +412,7 @@ impl<'a> AST<'a> {
             }
             Token::Function(name, _) => self.parse_function(name),
             Token::Operator(op, _) => self.parse_operator(op),
-            Token::Delim(_, _) => self.parse_bracket(),
+            Token::Delim(ty, _) => self.parse_delim(ty),
             Token::EOF => Ok(ExprAST::None),
             _ => Err(Error::UnexpectedToken()),
         }
@@ -489,31 +489,30 @@ impl<'a> AST<'a> {
         }
     }
 
-    fn parse_bracket(&mut self) -> Result<ExprAST> {
-        if self.cur_tok().is_left_paren() {
-            return self.parse_left_paren();
-        } else if self.cur_tok().is_left_bracket() {
-            return self.parse_left_bracket();
-        } else if self.cur_tok().is_left_curly() {
-            return self.parse_left_curly();
+    fn parse_delim(&mut self, ty: DelimTokenType) -> Result<ExprAST> {
+        use DelimTokenType::*;
+        match ty {
+            OpenParen => self.parse_open_paren(),
+            OpenBracket => self.parse_open_bracket(),
+            OpenBrace => self.parse_open_brace(),
+            _ => Err(Error::NoOpenDelim),
         }
-        Err(Error::NoLeftBrace(0))
     }
 
-    fn parse_left_paren(&mut self) -> Result<ExprAST> {
+    fn parse_open_paren(&mut self) -> Result<ExprAST> {
         self.next()?;
         let expr = self.parse_expression()?;
-        if !self.cur_tok().is_right_paren() {
-            return Err(Error::NoRightBrace(0));
+        if !self.cur_tok().is_close_paren() {
+            return Err(Error::NoCloseDelim);
         }
         self.next()?;
         return Ok(expr);
     }
 
-    fn parse_left_curly(&mut self) -> Result<ExprAST> {
+    fn parse_open_brace(&mut self) -> Result<ExprAST> {
         self.next()?;
         let mut m = Vec::new();
-        if self.cur_tok().is_right_curly() {
+        if self.cur_tok().is_close_brace() {
             return Ok(ExprAST::Map(m));
         }
         loop {
@@ -521,7 +520,7 @@ impl<'a> AST<'a> {
             self.expect(":")?;
             let v = self.parse_expression()?;
             m.push((k, v));
-            if self.cur_tok().is_right_curly() {
+            if self.cur_tok().is_close_brace() {
                 self.next()?;
                 break;
             }
@@ -530,16 +529,16 @@ impl<'a> AST<'a> {
         Ok(ExprAST::Map(m))
     }
 
-    fn parse_left_bracket(&mut self) -> Result<ExprAST> {
+    fn parse_open_bracket(&mut self) -> Result<ExprAST> {
         self.next()?;
         let mut exprs = Vec::new();
-        if self.cur_tok().is_right_bracket() {
+        if self.cur_tok().is_close_bracket() {
             self.next()?;
             return Ok(ExprAST::List(exprs));
         }
         loop {
             exprs.push(self.parse_expression()?);
-            if self.cur_tok().is_right_bracket() {
+            if self.cur_tok().is_close_bracket() {
                 self.next()?;
                 break;
             }
@@ -557,14 +556,14 @@ impl<'a> AST<'a> {
         self.next()?;
         self.expect("(")?;
         let mut ans = Vec::new();
-        if self.cur_tok().is_right_paren() {
+        if self.cur_tok().is_close_paren() {
             self.next()?;
             return Ok(ExprAST::Function(name, ans));
         }
         let has_right_paren;
         loop {
             ans.push(self.parse_expression()?);
-            if self.cur_tok().is_right_paren() {
+            if self.cur_tok().is_close_paren() {
                 has_right_paren = true;
                 self.next()?;
                 break;
@@ -572,7 +571,7 @@ impl<'a> AST<'a> {
             self.expect(",")?;
         }
         if !has_right_paren {
-            return Err(Error::NoRightBrace(0));
+            return Err(Error::NoCloseDelim);
         }
         Ok(ExprAST::Function(name, ans))
     }
@@ -595,7 +594,7 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "m=mm + 5;c=m+2-1*3;c";
+    let input = "m=mm + 5;c=m+2-1*3;[1,2,3,true];c";
     let ast = AST::new(input);
     let mut ctx = Context::new();
     ctx.set_variable("mm", Value::from(12.0_f64));

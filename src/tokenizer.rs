@@ -181,7 +181,7 @@ impl<'a> Tokenizer<'a> {
             }
             KeywordType::Unknown => {
                 let token = self.peek()?;
-                if token.is_left_paren() {
+                if token.is_open_paren() {
                     return Ok(Token::Function(
                         self.input[start..self.current()].to_owned(),
                         Span(start, self.current()),
