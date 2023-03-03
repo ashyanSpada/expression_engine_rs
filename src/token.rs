@@ -2,12 +2,76 @@ use core::clone::Clone;
 use rust_decimal::Decimal;
 use std::fmt;
 
+#[derive(Clone)]
+pub enum DelimTokenType {
+    // "("
+    OpenParen,
+    // ")"
+    CloseParen,
+    // "["
+    OpenBracket,
+    // "]"
+    CloseBracket,
+    // "{"
+    OpenBrace,
+    // "}"
+    CloseBrace,
+
+    Unknown,
+}
+
+impl From<char> for DelimTokenType {
+    fn from(value: char) -> Self {
+        use DelimTokenType::*;
+        match value {
+            '(' => OpenParen,
+            ')' => CloseParen,
+            '[' => OpenBracket,
+            ']' => CloseBracket,
+            '{' => OpenBrace,
+            '}' => CloseBrace,
+            _ => Unknown,
+        }
+    }
+}
+
+impl From<&str> for DelimTokenType {
+    fn from(value: &str) -> Self {
+        use DelimTokenType::*;
+        match value {
+            "(" => OpenParen,
+            ")" => CloseParen,
+            "[" => OpenBracket,
+            "]" => CloseBracket,
+            "{" => OpenBrace,
+            "}" => CloseBrace,
+            _ => Unknown,
+        }
+    }
+}
+
+impl DelimTokenType {
+    pub fn string(&self) -> String {
+        use DelimTokenType::*;
+        match self {
+            OpenParen => "(".to_string(),
+            CloseParen => ")".to_string(),
+            OpenBracket => "[".to_string(),
+            CloseBracket => "]".to_string(),
+            OpenBrace => "{".to_string(),
+            CloseBrace => "}".to_string(),
+            Unknown => "??".to_string(),
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Span(pub usize, pub usize);
 
 #[derive(Clone)]
 pub enum Token {
-    Bracket(String, Span),
     Operator(String, Span),
+    Delim(DelimTokenType, Span),
     Number(Decimal, Span),
     Comma(String, Span),
     Bool(bool, Span),
@@ -20,8 +84,8 @@ pub enum Token {
 
 pub fn check_op(token: &Token, expected: &str) -> bool {
     match token {
-        Token::Bracket(op, _) => {
-            if op == expected {
+        Token::Delim(op, _) => {
+            if op.string() == expected {
                 return true;
             }
         }
@@ -77,53 +141,55 @@ impl Token {
 
     pub fn is_op_token(&self) -> bool {
         match self {
-            Self::Operator(_, _) => true,
+            Self::Operator(op, _) => true,
             _ => false,
         }
     }
 
     pub fn is_semicolon(&self) -> bool {
         match self {
-            Self::Semicolon(_, _) => true,
+            Self::Semicolon(..) => true,
             _ => false,
         }
     }
 
     pub fn string(&self) -> String {
+        use Token::*;
         match self {
-            Self::Bracket(bracket, _) => bracket.clone(),
-            Self::Operator(op, _) => op.clone(),
-            Self::Number(val, _) => val.to_string(),
-            Self::Comma(val, _) => val.to_string(),
-            Self::Bool(val, _) => val.to_string(),
-            Self::String(val, _) => val.clone(),
-            Self::Reference(val, _) => val.clone(),
-            Self::Function(val, _) => val.clone(),
-            Self::Semicolon(val, _) => val.clone(),
-            Self::EOF => "EOF".to_string(),
+            Operator(op, _) => op.clone(),
+            Number(val, _) => val.to_string(),
+            Comma(val, _) => val.to_string(),
+            Bool(val, _) => val.to_string(),
+            String(val, _) => val.clone(),
+            Reference(val, _) => val.clone(),
+            Function(val, _) => val.clone(),
+            Semicolon(val, _) => val.clone(),
+            Delim(ty, _) => ty.string(),
+            EOF => "EOF".to_string(),
         }
     }
 }
 
-impl Clone for Span {
-    fn clone(&self) -> Self {
-        return Self(self.0.clone(), self.1.clone());
+impl fmt::Display for Span {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[{}..={})", self.0, self.1)
     }
 }
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Token::*;
         match self {
-            Self::Bracket(bracket, _) => write!(f, "Bracket Token: {}", bracket),
-            Self::Bool(val, _) => write!(f, "Bool Token: {}", val),
-            Self::Comma(val, _) => write!(f, "Comma Token: {}", val),
-            Self::Number(val, _) => write!(f, "Number Token: {}", val),
-            Self::Operator(val, _) => write!(f, "Operator Token: {}", val),
-            Self::Reference(val, _) => write!(f, "Reference Token: {}", val),
-            Self::Function(val, _) => write!(f, "Function Token: {}", val),
-            Self::String(val, _) => write!(f, "String Token: {}", val),
-            Self::Semicolon(val, _) => write!(f, "Semicolon Token: {}", val),
-            Self::EOF => write!(f, "EOF"),
+            Bool(val, span) => write!(f, "Bool Token: {}, {}", val, span),
+            Comma(val, span) => write!(f, "Comma Token: {}, {}", val, span),
+            Number(val, span) => write!(f, "Number Token: {}, {}", val, span),
+            Operator(val, span) => write!(f, "Operator Token: {}, {}", val, span),
+            Reference(val, span) => write!(f, "Reference Token: {}, {}", val, span),
+            Function(val, span) => write!(f, "Function Token: {}, {}", val, span),
+            String(val, span) => write!(f, "String Token: {}, {}", val, span),
+            Semicolon(val, span) => write!(f, "Semicolon Token: {}, {}", val, span),
+            Delim(ty, span) => write!(f, "Delim Token: {}, {}", ty.string(), span),
+            EOF => write!(f, "EOF"),
         }
     }
 }

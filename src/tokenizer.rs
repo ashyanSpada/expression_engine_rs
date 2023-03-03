@@ -43,7 +43,7 @@ impl<'a> Tokenizer<'a> {
                 start,
                 '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':',
             )) => self.operator_token(start),
-            Some((start, '(' | ')' | '[' | ']' | '{' | '}')) => self.bracket_token(start),
+            Some((start, '(' | ')' | '[' | ']' | '{' | '}')) => self.delim_token(start),
             Some((start, _ch @ '0'..='9')) => self.number_token(start),
             Some((start, '"' | '\'')) => self.string_token(start),
             Some((start, ';')) => self.semicolon_token(start),
@@ -73,8 +73,8 @@ impl<'a> Tokenizer<'a> {
         let token = self.cur_token.clone();
         self.next()?;
         match token {
-            Token::Bracket(bracket, _) => {
-                if bracket == op {
+            Token::Delim(bracket, _) => {
+                if bracket.string() == op {
                     return Ok(());
                 }
             }
@@ -95,9 +95,9 @@ impl<'a> Tokenizer<'a> {
         Ok(())
     }
 
-    fn bracket_token(&mut self, start: usize) -> Result<Token> {
-        Ok(Token::Bracket(
-            self.input[start..start + 1].to_owned(),
+    fn delim_token(&mut self, start: usize) -> Result<Token> {
+        Ok(Token::Delim(
+            self.input[start..start + 1].into(),
             Span(start, start + 1),
         ))
     }

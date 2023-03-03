@@ -8,7 +8,6 @@ use crate::tokenizer::Tokenizer;
 use crate::value::Value;
 use rust_decimal::prelude::*;
 use std::fmt;
-use std::sync::Arc;
 
 #[derive(Clone, PartialEq, Eq)]
 pub enum ExprAST {
@@ -413,7 +412,7 @@ impl<'a> AST<'a> {
             }
             Token::Function(name, _) => self.parse_function(name),
             Token::Operator(op, _) => self.parse_operator(op),
-            Token::Bracket(_, _) => self.parse_bracket(),
+            Token::Delim(_, _) => self.parse_bracket(),
             Token::EOF => Ok(ExprAST::None),
             _ => Err(Error::UnexpectedToken()),
         }
