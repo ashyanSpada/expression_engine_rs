@@ -411,7 +411,7 @@ impl<'a> AST<'a> {
                 Ok(ExprAST::Reference(val))
             }
             Token::Function(name, _) => self.parse_function(name),
-            Token::Operator(op, _) => self.parse_operator(op),
+            Token::Operator(op, _) => self.parse_unary(op),
             Token::Delim(ty, _) => self.parse_delim(ty),
             Token::EOF => Ok(ExprAST::None),
             _ => Err(Error::UnexpectedToken()),
@@ -421,17 +421,18 @@ impl<'a> AST<'a> {
     pub fn parse_expression(&mut self) -> Result<ExprAST> {
         let mut ans = Vec::new();
         loop {
-            let lhs = self.parse_primary()?;
-            if !self.cur_tok().is_op_token() {
-                ans.push(lhs);
-            } else {
-                ans.push(self.parse_op(lhs)?);
+            let mut lhs = self.parse_primary()?;
+            if self.cur_tok().is_question_mark() {
+                lhs = self.parse_terop(lhs)?;
+            } else if self.cur_tok().is_binop_token() {
+                lhs = self.parse_binop(0, lhs)?;
             }
-            if !self.cur_tok().is_semicolon() {
-                println!("cur_tok is {}", self.cur_tok());
+            ans.push(lhs);
+            if self.cur_tok().is_eof() {
                 break;
+            } else if self.cur_tok().is_semicolon() {
+                self.next()?;
             }
-            self.next()?;
         }
         if ans.len() == 1 {
             return Ok(ans[0].clone());
@@ -452,6 +453,9 @@ impl<'a> AST<'a> {
 
     fn parse_binop(&mut self, exec_prec: i32, mut lhs: ExprAST) -> Result<ExprAST> {
         loop {
+            if !self.cur_tok().is_binop_token() {
+                return Ok(lhs);
+            }
             let tok_prec = self.get_token_precidence();
             if tok_prec < exec_prec {
                 return Ok(lhs);
@@ -459,8 +463,7 @@ impl<'a> AST<'a> {
             let op = self.cur_tok().string();
             self.next()?;
             let mut rhs = self.parse_primary()?;
-            let next_prec = self.get_token_precidence();
-            if tok_prec < next_prec {
+            if self.cur_tok().is_binop_token() && tok_prec < self.get_token_precidence() {
                 rhs = self.parse_binop(tok_prec + 1, rhs)?;
             }
             lhs = ExprAST::Binary(op, Box::new(lhs), Box::new(rhs))
@@ -469,12 +472,12 @@ impl<'a> AST<'a> {
 
     fn parse_terop(&mut self, condition: ExprAST) -> Result<ExprAST> {
         self.next()?;
-        let lhs = self.parse_primary()?;
+        let lhs = self.parse_expression()?;
         if !self.cur_tok().is_colon() {
             return Err(Error::InvalidTernaryExprNeedColon());
         }
         self.next()?;
-        let rhs = self.parse_primary()?;
+        let rhs = self.parse_expression()?;
         Ok(ExprAST::Ternary(
             Box::new(condition),
             Box::new(lhs),
@@ -516,7 +519,7 @@ impl<'a> AST<'a> {
             return Ok(ExprAST::Map(m));
         }
         loop {
-            let k = self.parse_primary()?;
+            let k = self.parse_expression()?;
             self.expect(":")?;
             let v = self.parse_expression()?;
             m.push((k, v));
@@ -547,7 +550,7 @@ impl<'a> AST<'a> {
         Ok(ExprAST::List(exprs))
     }
 
-    fn parse_operator(&mut self, op: String) -> Result<ExprAST> {
+    fn parse_unary(&mut self, op: String) -> Result<ExprAST> {
         self.next()?;
         Ok(ExprAST::Unary(op, Box::new(self.parse_primary()?)))
     }
@@ -594,7 +597,8 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "m=mm + 5;c=m+2-1*3;[1,2,3,true];c";
+    let input = "1+2>3?true && 5>2 : 'haha'";
+    // input = "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1*4+2";
     let ast = AST::new(input);
     let mut ctx = Context::new();
     ctx.set_variable("mm", Value::from(12.0_f64));

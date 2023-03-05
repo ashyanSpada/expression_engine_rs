@@ -24,6 +24,7 @@ pub enum Error {
     NotReferenceExpr,
     NoOpenDelim,
     NoCloseDelim,
+    InvalidOp(String),
 }
 
 impl fmt::Display for Error {
@@ -54,6 +55,7 @@ impl fmt::Display for Error {
             NotReferenceExpr => write!(f, "not reference expr"),
             NoOpenDelim => write!(f, "no open delim"),
             NoCloseDelim => write!(f, "no close delim"),
+            InvalidOp(op) => write!(f, "invalid op {}", op),
         }
     }
 }

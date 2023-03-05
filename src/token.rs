@@ -146,6 +146,13 @@ impl Token {
         }
     }
 
+    pub fn is_binop_token(&self) -> bool {
+        match self {
+            Self::Operator(op, _) => op != "?" && op != ":",
+            _ => false,
+        }
+    }
+
     pub fn is_semicolon(&self) -> bool {
         match self {
             Self::Semicolon(..) => true,
