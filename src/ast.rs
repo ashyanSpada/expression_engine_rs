@@ -234,7 +234,7 @@ impl ExprAST {
     }
 
     fn string_expr(&self, val: String) -> String {
-        val
+        "\"".to_string() + &val + "\""
     }
 
     fn reference_expr(&self, val: String) -> String {
@@ -302,11 +302,14 @@ impl ExprAST {
 
     fn map_expr(&self, m: Vec<(ExprAST, ExprAST)>) -> String {
         let mut s = String::from("{");
-        for (k, v) in m.into_iter() {
-            s.push_str(k.expr().as_str());
+        for i in 0..m.len() {
+            let (key, value) = m[i].clone();
+            s.push_str(key.expr().as_str());
             s.push_str(":");
-            s.push_str(v.expr().as_str());
-            s.push_str(", ");
+            s.push_str(value.expr().as_str());
+            if i < m.len() - 1 {
+                s.push_str(",");
+            }
         }
         s.push_str("}");
         s
@@ -398,8 +401,27 @@ impl<'a> AST<'a> {
         }
     }
 
+    pub fn parse_chain_expression(&mut self) -> Result<ExprAST> {
+        let mut ans = Vec::new();
+        loop {
+            if self.cur_tok().is_eof() {
+                break;
+            }
+            print!("curTok is2 {}", self.cur_tok());
+            ans.push(self.parse_expression()?);
+            print!("curTok is {}, {}", self.cur_tok(), self.cur_tok().is_eof());
+            if self.cur_tok().is_semicolon() {
+                self.next()?;
+            }
+        }
+        if ans.len() == 1 {
+            return Ok(ans[0].clone());
+        }
+        Ok(ExprAST::Chain(ans))
+    }
+
     pub fn parse_expression(&mut self) -> Result<ExprAST> {
-        let mut lhs = self.parse_primary()?;
+        let lhs = self.parse_primary()?;
         self.parse_op(0, lhs)
     }
 
@@ -545,14 +567,14 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "1+2>=3?true && 5>2 : 'haha'";
+    let input = "c={1+2>=3?true && 5>2 : 'haha': 5};c";
     // input = "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1*4+2";
     let ast = AST::new(input);
     let mut ctx = Context::new();
     ctx.set_variable("mm", Value::from(12.0_f64));
     match ast {
         Ok(mut a) => {
-            let expr = a.parse_expression().unwrap();
+            let expr = a.parse_chain_expression().unwrap();
             println!("expr is {}", expr);
             println!("string is {}", expr.expr());
             let ans = expr.exec(&mut ctx).unwrap();
