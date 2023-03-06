@@ -285,27 +285,7 @@ impl ExprAST {
         lhs: &Box<ExprAST>,
         rhs: &Box<ExprAST>,
     ) -> String {
-        let condition_expr = match condition.as_ref() {
-            ExprAST::Binary(_, _, _) | ExprAST::Ternary(_, _, _) => {
-                "(".to_string() + &condition.expr() + ")"
-            }
-            _ => condition.expr(),
-        };
-
-        let left_expr = match lhs.as_ref() {
-            ExprAST::Binary(_, _, _) | ExprAST::Ternary(_, _, _) => {
-                "(".to_string() + &lhs.expr() + ")"
-            }
-            _ => lhs.expr(),
-        };
-
-        let right_expr = match rhs.as_ref() {
-            ExprAST::Binary(_, _, _) | ExprAST::Ternary(_, _, _) => {
-                "(".to_string() + &rhs.expr() + ")"
-            }
-            _ => rhs.expr(),
-        };
-        condition_expr + " ? " + &left_expr + " : " + &right_expr
+        condition.expr() + " ? " + &lhs.expr() + " : " + &rhs.expr()
     }
 
     fn list_expr(&self, params: Vec<ExprAST>) -> String {
@@ -419,42 +399,25 @@ impl<'a> AST<'a> {
     }
 
     pub fn parse_expression(&mut self) -> Result<ExprAST> {
-        let mut ans = Vec::new();
-        loop {
-            let mut lhs = self.parse_primary()?;
-            if self.cur_tok().is_question_mark() {
-                lhs = self.parse_terop(lhs)?;
-            } else if self.cur_tok().is_binop_token() {
-                lhs = self.parse_binop(0, lhs)?;
-            }
-            ans.push(lhs);
-            if self.cur_tok().is_eof() {
-                break;
-            } else if self.cur_tok().is_semicolon() {
-                self.next()?;
-            }
-        }
-        if ans.len() == 1 {
-            return Ok(ans[0].clone());
-        }
-        Ok(ExprAST::Chain(ans))
+        let mut lhs = self.parse_primary()?;
+        self.parse_op(0, lhs)
     }
 
     fn parse_primary(&mut self) -> Result<ExprAST> {
         Ok(self.parse_token()?)
     }
 
-    fn parse_op(&mut self, lhs: ExprAST) -> Result<ExprAST> {
-        if self.cur_tok().is_question_mark() {
-            return self.parse_terop(lhs);
-        }
-        self.parse_binop(0, lhs)
-    }
-
-    fn parse_binop(&mut self, exec_prec: i32, mut lhs: ExprAST) -> Result<ExprAST> {
+    fn parse_op(&mut self, exec_prec: i32, mut lhs: ExprAST) -> Result<ExprAST> {
         loop {
-            if !self.cur_tok().is_binop_token() {
+            if !self.cur_tok().is_op_token() {
                 return Ok(lhs);
+            }
+            if self.cur_tok().is_question_mark() {
+                self.next()?;
+                let a = self.parse_expression()?;
+                self.expect(":")?;
+                let b = self.parse_expression()?;
+                return Ok(ExprAST::Ternary(Box::new(lhs), Box::new(a), Box::new(b)));
             }
             let tok_prec = self.get_token_precidence();
             if tok_prec < exec_prec {
@@ -464,25 +427,10 @@ impl<'a> AST<'a> {
             self.next()?;
             let mut rhs = self.parse_primary()?;
             if self.cur_tok().is_binop_token() && tok_prec < self.get_token_precidence() {
-                rhs = self.parse_binop(tok_prec + 1, rhs)?;
+                rhs = self.parse_op(tok_prec + 1, rhs)?;
             }
             lhs = ExprAST::Binary(op, Box::new(lhs), Box::new(rhs))
         }
-    }
-
-    fn parse_terop(&mut self, condition: ExprAST) -> Result<ExprAST> {
-        self.next()?;
-        let lhs = self.parse_expression()?;
-        if !self.cur_tok().is_colon() {
-            return Err(Error::InvalidTernaryExprNeedColon());
-        }
-        self.next()?;
-        let rhs = self.parse_expression()?;
-        Ok(ExprAST::Ternary(
-            Box::new(condition),
-            Box::new(lhs),
-            Box::new(rhs),
-        ))
     }
 
     fn get_token_precidence(&self) -> i32 {
@@ -597,7 +545,7 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "1+2>3?true && 5>2 : 'haha'";
+    let input = "1+2>=3?true && 5>2 : 'haha'";
     // input = "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1*4+2";
     let ast = AST::new(input);
     let mut ctx = Context::new();
