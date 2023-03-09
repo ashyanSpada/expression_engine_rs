@@ -21,11 +21,12 @@ match execute(input, ctx) {
 ```
 
 ## Features
+
 + Easy to Use (three lines at least)
 + Abundant Types and Expressions (Five fundamental types and seven kinds of expressions)
 + Pre-defined Operators Support (Common boolean, numeric and string operators)
 + Support function and operators registration
-+ Support operator redirection  
++ Support operator redirection
 
 ## Fundamental Types
 
@@ -38,6 +39,30 @@ The engine supports 5 fundamental types, respectively, the Boolean type, the Num
 | String | 'test'\|"test"           |
 | Map    | {"a":"b","c":true}       |
 | List   | [1,2,3,true,"res"]       |
+
+## Definition
+
+```
+Syntax
+Expression(;Expression)*
+
+Expression:
+(
+	BoolExpression
+	| NumberExpression
+	| StringExpression
+	| UnaryExpression
+	| BinaryExpression
+	| TernaryExpression
+	| FunctionExpression
+	| ReferenceExpression
+	| ListExpression
+	| MapExpression
+	| NoneExpression
+
+)
+
+```
 
 ## Supported Exprs
 
