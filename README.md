@@ -42,15 +42,15 @@ The engine supports 5 fundamental types, respectively, the Boolean type, the Num
 
 ## Definition
 
+### Expression
+
 ```
 Syntax
 Expression(;Expression)*
 
 Expression:
 (
-	BoolExpression
-	| NumberExpression
-	| StringExpression
+	LiteralExpression 
 	| UnaryExpression
 	| BinaryExpression
 	| TernaryExpression
@@ -64,21 +64,117 @@ Expression:
 
 ```
 
-## Supported Exprs
-
-### Unary Expr
+### LiteralExpression
 
 ```
-Pattern: op expr
-Example: !(2 > 3)
+Syntax
+LiteralExpression:
+  (LITERAL_NUMBER|LITERAL_BOOL|LITERAL_STRING)
+
 ```
 
-| Op  | Desc |
-| --- | ---- |
-| !   |      |
-| not |      |
+A literal expression is an expression consisting of only one single token instead of a sequence of tokens. Here are 3 kinds of literal expresions, respectively, the LITERAL_NUMBER, the LITERAL_BOOL, and the LITERAL_STRING.
 
-### Binary Expr
+#### LITERAL_NUMBER
+
+#### LITERAL_BOOL
+
+The 'false' and 'False' will be parsed to the bool value **false**, while the 'true' and 'True' will be decoded to the bool value **true**.
+
+#### LITERAL_STRING
+
+A sequence of characters that starts with " and ends with " or starts with ' and ends with ' will be decoded as a LITERAL_STRING.
+
+### UnaryExpression
+
+```
+Syntax
+UnaryExpression:
+  Operator Operand
+
+Operand:
+  Expression
+```
+
+A unary expression is consisted of an operand and a unary operator. All the unary operators have the same precedence and the right-to-left associativity.
+
+| UnaryOp | Desc                      |
+| ------- | ------------------------- |
+| !       | Logical negation operator |
+| not     | Logical negation operator |
+
+### BinaryExpression
+
+```
+Syntax
+BinaryExpression:
+  Lhs Operator Rhs
+
+Lhs:
+  Expresssion
+
+Rhs:
+  Expression
+
+```
+
+### TernaryExpression
+
+```
+Syntax
+TernaryExpression:
+  Condition ? Lhs : Rhs
+
+Condition:
+  Expression
+
+Lhs:
+  Expression
+
+Rhs:
+  Expression
+```
+
+A binary expression contains two operands separated by an operator. All the binary operators have right-to-left associativity while their precedences may be not the same.
+
+### FunctionExpression
+
+```
+Syntax
+FunctionExpression:
+  func(FunctionParams?)
+
+FunctionParams:
+  Expression(,Expression)*
+
+
+```
+
+### ReferenceExpression
+
+### ListExpression
+
+```
+Syntax
+ListExpression:
+  [ListElements?]
+
+ListElements:
+  Expression(,Expression)*
+```
+
+### MapExpression
+
+```
+Syntax
+MapExpression:
+  {MapElements?}
+
+MapElements:
+  Expression:Expresssion(,Expression:Expression)*
+```
+
+### NoneExpression
 
 ```
 Pattern: expr1 op expr2
@@ -103,37 +199,3 @@ Example: (2 + 3) * 5
 | in        | 100        |      |
 | endWith   | 120        |      |
 | beginWith | 120        |      |
-
-### Ternary Expr
-
-```
-Pattern: expr1 ? expr2 : expr3
-Example: (2>3) ? true : 'test'
-```
-
-### Function
-
-```
-Pattern: func(expr1, expr2, ...)
-Example: max(1, 2+3, (4+5)*2)
-```
-
-### Reference
-
-`Pattern: a + b`
-
-Example:  a + b
-
-### List
-
-```
-Pattern: [expr1, expr2, expr3, ...]
-Example: [a, 1, 2+3, true, "test"]
-```
-
-### Map
-
-```
-Pattern: {expr1: expr2, expr3: expr4, ...}
-Example: {1:2, "key": "test", true: false}
-```

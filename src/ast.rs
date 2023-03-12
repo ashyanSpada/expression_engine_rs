@@ -10,10 +10,26 @@ use rust_decimal::prelude::*;
 use std::fmt;
 
 #[derive(Clone, PartialEq, Eq)]
-pub enum ExprAST {
+pub enum Literal {
     Number(Decimal),
     Bool(bool),
     String(String),
+}
+
+impl fmt::Display for Literal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use Literal::*;
+        match self {
+            Number(value) => write!(f, "Number: {}", value.clone()),
+            Bool(value) => write!(f, "Bool: {}", value.clone()),
+            String(value) => write!(f, "String: {}", value.clone()),
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq)]
+pub enum ExprAST {
+    Literal(Literal),
     Unary(String, Box<ExprAST>),
     Binary(String, Box<ExprAST>, Box<ExprAST>),
     Ternary(Box<ExprAST>, Box<ExprAST>, Box<ExprAST>),
@@ -28,9 +44,7 @@ pub enum ExprAST {
 impl fmt::Display for ExprAST {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Number(val) => write!(f, "Number AST: {}", val.clone()),
-            Self::Bool(val) => write!(f, "Bool AST: {}", val.clone()),
-            Self::String(val) => write!(f, "String AST: {}", val.clone()),
+            Self::Literal(val) => write!(f, "Literal AST: {}", val.clone()),
             Self::Unary(op, rhs) => {
                 write!(f, "Unary AST: Op: {}, Rhs: {}", op.clone(), rhs.clone())
             }
@@ -86,32 +100,27 @@ impl fmt::Display for ExprAST {
 
 impl ExprAST {
     pub fn exec(&self, ctx: &mut Context) -> Result<Value> {
+        use ExprAST::*;
         match self {
-            Self::Bool(val) => self.exec_bool(val.clone()),
-            Self::Number(val) => self.exec_number(val.clone()),
-            Self::String(val) => self.exec_string(val.clone()),
-            Self::Reference(name) => self.exec_reference(name, ctx),
-            Self::Function(name, exprs) => self.exec_function(name, exprs.clone(), ctx),
-            Self::Unary(op, rhs) => self.exec_unary(op.clone(), rhs, ctx),
-            Self::Binary(op, lhs, rhs) => self.exec_binary(op.clone(), lhs, rhs, ctx),
-            Self::Ternary(condition, lhs, rhs) => self.exec_ternary(condition, lhs, rhs, ctx),
-            Self::List(params) => self.exec_list(params.clone(), ctx),
-            Self::Chain(exprs) => self.exec_chain(exprs.clone(), ctx),
-            Self::Map(m) => self.exec_map(m.clone(), ctx),
-            Self::None => Ok(Value::None),
+            Literal(literal) => self.exec_literal(literal.clone()),
+            Reference(name) => self.exec_reference(name, ctx),
+            Function(name, exprs) => self.exec_function(name, exprs.clone(), ctx),
+            Unary(op, rhs) => self.exec_unary(op.clone(), rhs, ctx),
+            Binary(op, lhs, rhs) => self.exec_binary(op.clone(), lhs, rhs, ctx),
+            Ternary(condition, lhs, rhs) => self.exec_ternary(condition, lhs, rhs, ctx),
+            List(params) => self.exec_list(params.clone(), ctx),
+            Chain(exprs) => self.exec_chain(exprs.clone(), ctx),
+            Map(m) => self.exec_map(m.clone(), ctx),
+            None => Ok(Value::None),
         }
     }
 
-    fn exec_bool(&self, val: bool) -> Result<Value> {
-        Ok(Value::Bool(val))
-    }
-
-    fn exec_number(&self, val: Decimal) -> Result<Value> {
-        Ok(Value::Number(val))
-    }
-
-    fn exec_string(&self, val: String) -> Result<Value> {
-        Ok(Value::String(val))
+    fn exec_literal(&self, literal: Literal) -> Result<Value> {
+        match literal {
+            Literal::Bool(value) => Ok(Value::from(value)),
+            Literal::Number(value) => Ok(Value::from(value)),
+            Literal::String(value) => Ok(Value::from(value)),
+        }
     }
 
     fn exec_reference(&self, name: &str, ctx: &Context) -> Result<Value> {
@@ -209,14 +218,7 @@ impl ExprAST {
 
     pub fn expr(&self) -> String {
         match self {
-            Self::Bool(val) => {
-                if val.clone() {
-                    return "true".to_string();
-                }
-                return "false".to_string();
-            }
-            Self::Number(val) => self.number_expr(val.clone()),
-            Self::String(val) => self.string_expr(val.clone()),
+            Self::Literal(val) => self.literal_expr(val.clone()),
             Self::Reference(name) => self.reference_expr(name.clone()),
             Self::Function(name, exprs) => self.function_expr(name.clone(), exprs.clone()),
             Self::Unary(op, rhs) => self.unary_expr(op, rhs),
@@ -235,6 +237,21 @@ impl ExprAST {
 
     fn string_expr(&self, val: String) -> String {
         "\"".to_string() + &val + "\""
+    }
+
+    fn literal_expr(&self, val: Literal) -> String {
+        use Literal::*;
+        match val {
+            Number(value) => value.to_string(),
+            Bool(value) => {
+                if value {
+                    "true".into()
+                } else {
+                    "false".into()
+                }
+            }
+            String(value) => "\"".to_string() + &value + "\"",
+        }
     }
 
     fn reference_expr(&self, val: String) -> String {
@@ -379,15 +396,15 @@ impl<'a> AST<'a> {
         match token {
             Token::Number(val, _) => {
                 self.next()?;
-                Ok(ExprAST::Number(val))
+                Ok(ExprAST::Literal(Literal::Number(val)))
             }
             Token::Bool(val, _) => {
                 self.next()?;
-                Ok(ExprAST::Bool(val))
+                Ok(ExprAST::Literal(Literal::Bool(val)))
             }
             Token::String(val, _) => {
                 self.next()?;
-                Ok(ExprAST::String(val))
+                Ok(ExprAST::Literal(Literal::String(val)))
             }
             Token::Reference(val, _) => {
                 self.next()?;

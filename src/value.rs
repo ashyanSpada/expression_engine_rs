@@ -62,6 +62,13 @@ impl From<Vec<Value>> for Value {
         Value::List(value)
     }
 }
+
+impl From<Decimal> for Value {
+    fn from(value: Decimal) -> Self {
+        Value::Number(value)
+    }
+}
+
 use crate::impl_value_from_for_number;
 
 impl_value_from_for_number!(
