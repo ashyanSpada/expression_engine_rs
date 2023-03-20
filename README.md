@@ -1,10 +1,10 @@
-# expression_engine_rs
+# expression_engine
 
 ## Introduction
 
 Expression engine is a library written in pure Rust which provides an engine to compile and execute expressions. An expression indicates a string-like sentence that can be executed with some contexts and return a value (mostly, but not limited to, boolean, string and number).
 
-Expression executor aims to provide an engine for users that can execute complex logics using configurations without recompiling. It's a proper alternative as the basis to build business rule engines.
+Expression engine aims to provide an engine for users that can execute complex logics using configurations without recompiling. It's a proper alternative as the basis to build business rule engines.
 
 ## Usage
 
@@ -27,18 +27,6 @@ match execute(input, ctx) {
 + Pre-defined Operators Support (Common boolean, numeric and string operators)
 + Support function and operators registration
 + Support operator redirection
-
-## Fundamental Types
-
-The engine supports 5 fundamental types, respectively, the Boolean type, the Numeric type, the String type, the Map type and the List type.
-
-| Type   | Example                  |
-| ------ | ------------------------ |
-| Bool   | True\|False\|true\|false |
-| Number | 1.23\|-0.5\|1e3          |
-| String | 'test'\|"test"           |
-| Map    | {"a":"b","c":true}       |
-| List   | [1,2,3,true,"res"]       |
 
 ## Definition
 
@@ -77,9 +65,17 @@ A literal expression is an expression consisting of only one single token instea
 
 #### LITERAL_NUMBER
 
+```rust
+fn is_digit_char(ch: char) -> bool {
+    return '0' <= ch && ch <= '9' || ch == '.' || ch == '-' || ch == 'e' || ch == 'E' || ch == '+';
+}
+```
+
+Continuous chars with patterns as above will be parsed to a number.
+
 #### LITERAL_BOOL
 
-The 'false' and 'False' will be parsed to the bool value **false**, while the 'true' and 'True' will be decoded to the bool value **true**.
+The `false` and `False` will be parsed to the bool value **false**, while the `true` and `True` will be decoded to the bool value **true**.
 
 #### LITERAL_STRING
 
@@ -118,6 +114,8 @@ Rhs:
 
 ```
 
+A binary expression contains two operands separated by an operator. All the binary operators have right-to-left associativity while their precedences may be not the same.
+
 ### TernaryExpression
 
 ```
@@ -135,7 +133,7 @@ Rhs:
   Expression
 ```
 
-A binary expression contains two operands separated by an operator. All the binary operators have right-to-left associativity while their precedences may be not the same.
+The ternary expression is composed of three parts, respectively the Condition, the Lhs and the Rhs. If the result of the Condition is true, then return to Lhs. Otherwise the result of Rhs is returned.
 
 ### FunctionExpression
 
@@ -150,7 +148,11 @@ FunctionParams:
 
 ```
 
+The function name with the params which are a sequence of expressions separated by comma consist the function expression.
+
 ### ReferenceExpression
+
+The reference expression is either a variable or a function with no params.
 
 ### ListExpression
 
@@ -163,6 +165,8 @@ ListElements:
   Expression(,Expression)*
 ```
 
+The list expression starts with the open bracket and ends with the close bracket. Its params are a list of expressions.
+
 ### MapExpression
 
 ```
@@ -171,31 +175,24 @@ MapExpression:
   {MapElements?}
 
 MapElements:
-  Expression:Expresssion(,Expression:Expression)*
+  KeyElement:ValueElement(,KeyElement:ValueElement)*
+
+KeyElement:
+  Expression
+
+ValueElement:
+  Expression
 ```
+
+The map expression begins with the open brace and ends with the close brace with a sequence of k, v pair where both the k and v are expressions.
 
 ### NoneExpression
 
 ```
-Pattern: expr1 op expr2
-Example: (2 + 3) * 5
+Syntax
+NoneExpression:
+  None
+  
 ```
 
-| Op        | Precedence | Desc |
-| --------- | ---------- | ---- |
-| !=        | 20         |      |
-| ==        | 20         |      |
-| >         | 20         |      |
-| <         | 20         |      |
-| >=        | 20         |      |
-| <=        | 20         |      |
-| \|\|      | 40         |      |
-| &&        | 40         |      |
-| +         | 60         |      |
-| -         | 60         |      |
-| *         | 80         |      |
-| /         | 80         |      |
-| %         | 80         |      |
-| in        | 100        |      |
-| endWith   | 120        |      |
-| beginWith | 120        |      |
+The return value of the NoneExpression is `None`.
