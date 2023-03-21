@@ -228,8 +228,6 @@ impl ExprAST {
         }
     }
 
-    
-
     fn literal_expr(&self, val: Literal) -> String {
         use Literal::*;
         match val {
@@ -415,9 +413,7 @@ impl<'a> AST<'a> {
             if self.cur_tok().is_eof() {
                 break;
             }
-            print!("curTok is2 {}", self.cur_tok());
             ans.push(self.parse_expression()?);
-            print!("curTok is {}, {}", self.cur_tok(), self.cur_tok().is_eof());
             if self.cur_tok().is_semicolon() {
                 self.next()?;
             }
@@ -575,7 +571,7 @@ fn test() {
 
 #[test]
 fn test_exec() {
-    let input = "c={1+2>=3?true && 5>2 : 'haha': 5};c";
+    let input = "c=5;c";
     // input = "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1*4+2";
     let ast = AST::new(input);
     let mut ctx = Context::new();

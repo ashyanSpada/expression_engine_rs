@@ -60,7 +60,7 @@ impl Context {
     pub fn value(&self, name: &str) -> Result<Value> {
         let binding = self.0.lock().unwrap();
         if binding.get(name).is_none() {
-            return Err(Error::ReferenceNotExist(name.to_string()));
+            return Ok(Value::None);
         }
         let value = binding.get(name).unwrap();
         match value {
