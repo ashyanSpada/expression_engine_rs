@@ -1,3 +1,5 @@
+use crate::define::Result;
+use crate::error::Error;
 use crate::function::InnerFunction;
 use crate::value::Value;
 use core::clone::Clone;
@@ -49,9 +51,21 @@ impl Context {
         }
     }
 
-    pub fn get(&self, name: &String) -> Option<ContextValue> {
+    pub fn get(&self, name: &str) -> Option<ContextValue> {
         let binding = self.0.lock().unwrap();
         let value = binding.get(name)?;
         Some(value.clone())
+    }
+
+    pub fn value(&self, name: &str) -> Result<Value> {
+        let binding = self.0.lock().unwrap();
+        if binding.get(name).is_none() {
+            return Err(Error::ReferenceNotExist(name.to_string()));
+        }
+        let value = binding.get(name).unwrap();
+        match value {
+            ContextValue::Variable(v) => Ok(v.clone()),
+            ContextValue::Function(func) => func(Vec::new()),
+        }
     }
 }

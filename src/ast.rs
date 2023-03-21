@@ -124,10 +124,7 @@ impl ExprAST {
     }
 
     fn exec_reference(&self, name: &str, ctx: &Context) -> Result<Value> {
-        match ctx.get_variable(name) {
-            Some(value) => Ok(value),
-            None => Ok(Value::None),
-        }
+        ctx.value(name)
     }
 
     fn exec_function(
@@ -231,13 +228,7 @@ impl ExprAST {
         }
     }
 
-    fn number_expr(&self, val: Decimal) -> String {
-        val.to_string()
-    }
-
-    fn string_expr(&self, val: String) -> String {
-        "\"".to_string() + &val + "\""
-    }
+    
 
     fn literal_expr(&self, val: Literal) -> String {
         use Literal::*;
