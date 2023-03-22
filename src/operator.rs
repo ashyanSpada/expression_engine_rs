@@ -34,32 +34,68 @@ impl BinaryOpFuncManager {
     fn internal_register(
         mut m: HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)>,
     ) -> HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)> {
+        use BinOpType::*;
         m.insert(
-            "in".to_string(),
-            (
-                200,
-                BinOpType::CALC,
-                Arc::new(|left, right| match right {
-                    Value::List(params) => {
-                        for target in params {
-                            if target == left {
-                                return Ok(Value::Bool(true));
-                            }
-                        }
-                        return Ok(Value::Bool(false));
-                    }
-                    Value::Map(params) => {
-                        for (target, _) in params {
-                            if target == left {
-                                return Ok(Value::Bool(true));
-                            }
-                        }
-                        return Ok(Value::Bool(false));
-                    }
-                    _ => Err(Error::ParamInvalid()),
-                }),
-            ),
+            "=".to_string(),
+            (20, SETTER, Arc::new(|left, right| Ok(right))),
         );
+
+        for op in vec!["+=", "-=", "*=", "/=", "%="] {
+            m.insert(
+                op.to_string(),
+                (
+                    20,
+                    SETTER,
+                    Arc::new(move |left, right| {
+                        let mut a = match left {
+                            Value::Number(a) => a,
+                            _ => return Err(Error::ShouldBeNumber()),
+                        };
+                        let b = match right {
+                            Value::Number(b) => b,
+                            _ => return Err(Error::ShouldBeNumber()),
+                        };
+                        match op {
+                            "+=" => a += b,
+                            "-=" => a -= b,
+                            "*=" => a *= b,
+                            "/=" => a /= b,
+                            "%=" => a %= b,
+                            _ => (),
+                        }
+                        Ok(Value::Number(a))
+                    }),
+                ),
+            );
+        }
+
+        //
+        // m.insert(
+        //     "in".to_string(),
+        //     (
+        //         200,
+        //         BinOpType::CALC,
+        //         Arc::new(|left, right| match right {
+        //             Value::List(params) => {
+        //                 for target in params {
+        //                     if target == left {
+        //                         return Ok(Value::Bool(true));
+        //                     }
+        //                 }
+        //                 return Ok(Value::Bool(false));
+        //             }
+        //             Value::Map(params) => {
+        //                 for (target, _) in params {
+        //                     if target == left {
+        //                         return Ok(Value::Bool(true));
+        //                     }
+        //                 }
+        //                 return Ok(Value::Bool(false));
+        //             }
+        //             _ => Err(Error::ParamInvalid()),
+        //         }),
+        //     ),
+        // );
 
         m.insert(
             "beginWith".to_string(),
@@ -270,7 +306,7 @@ impl BinaryOpFuncManager {
                 }),
             ),
         );
-
+        let a = vec![("<=", 60, BinOpType::CALC)];
         m.insert(
             "<=".to_string(),
             (
