@@ -114,7 +114,41 @@ Rhs:
 
 ```
 
-A binary expression contains two operands separated by an operator. All the binary operators have right-to-left associativity while their precedences may be not the same.
+A binary expression contains two operands separated by an operator. All the binary operators have right-to-left associativity while their precedences may be not the same. The supported binary operators are as below:
+
+| Operator  | Precedence | Desc |
+| --------- | ---------- | ---- |
+| \|=       | 20         |      |
+| <<=       | 20         |      |
+| =         | 20         |      |
+| +=        | 20         |      |
+| ^=        | 20         |      |
+| /=        | 20         |      |
+| &=        | 20         |      |
+| >>=       | 20         |      |
+| %=        | 20         |      |
+| -=        | 20         |      |
+| *=        | 20         |      |
+| \|\|      | 40         |      |
+| &&        | 50         |      |
+| >         | 60         |      |
+| >=        | 60         |      |
+| <=        | 60         |      |
+| !=        | 60         |      |
+| <         | 60         |      |
+| ==        | 60         |      |
+| \|        | 70         |      |
+| ^         | 80         |      |
+| &         | 90         |      |
+| >>        | 100        |      |
+| <<        | 100        |      |
+| +         | 110        |      |
+| -         | 110        |      |
+| *         | 120        |      |
+| %         | 120        |      |
+| /         | 120        |      |
+| beginWith | 200        |      |
+| endWith   | 200        |      |
 
 ### TernaryExpression
 
