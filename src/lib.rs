@@ -12,7 +12,9 @@ mod value;
 mod context;
 
 pub fn execute(expr: &str, mut ctx: context::Context) -> define::Result<value::Value> {
-    ast::AST::new(expr)?.parse_expression()?.exec(&mut ctx)
+    ast::AST::new(expr)?
+        .parse_chain_expression()?
+        .exec(&mut ctx)
 }
 
 pub type Value = value::Value;
@@ -20,7 +22,7 @@ pub type Context = context::Context;
 
 #[test]
 fn test_exec() {
-    let input = "[]";
+    let input = "c = 5+3; c>>=10; c";
     let mut ctx = Context::new();
     ctx.set_variable(&String::from("mm"), Value::from(0.2));
     match execute(input, ctx) {

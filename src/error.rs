@@ -25,6 +25,8 @@ pub enum Error {
     NoOpenDelim,
     NoCloseDelim,
     InvalidOp(String),
+    InvalidInteger,
+    InvalidFloat,
 }
 
 impl fmt::Display for Error {
@@ -56,6 +58,8 @@ impl fmt::Display for Error {
             NoOpenDelim => write!(f, "no open delim"),
             NoCloseDelim => write!(f, "no close delim"),
             InvalidOp(op) => write!(f, "invalid op {}", op),
+            InvalidInteger => write!(f, "invalid integer"),
+            InvalidFloat => write!(f, "invalid float"),
         }
     }
 }

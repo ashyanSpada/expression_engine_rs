@@ -1,3 +1,5 @@
+use crate::define::Result;
+use crate::error::Error;
 use rust_decimal::prelude::*;
 use std::fmt;
 
@@ -66,6 +68,49 @@ impl From<Vec<Value>> for Value {
 impl From<Decimal> for Value {
     fn from(value: Decimal) -> Self {
         Value::Number(value)
+    }
+}
+
+impl Value {
+    pub fn decimal(self) -> Result<rust_decimal::Decimal> {
+        match self {
+            Self::Number(val) => Ok(val),
+            _ => Err(Error::ShouldBeNumber()),
+        }
+    }
+
+    pub fn string(self) -> Result<String> {
+        match self {
+            Self::String(val) => Ok(val),
+            _ => Err(Error::ShouldBeString()),
+        }
+    }
+
+    pub fn bool(self) -> Result<bool> {
+        match self {
+            Self::Bool(val) => Ok(val),
+            _ => Err(Error::ShouldBeBool()),
+        }
+    }
+
+    pub fn integer(self) -> Result<i64> {
+        match self {
+            Self::Number(val) => val
+                .to_string()
+                .parse()
+                .map_or(Err(Error::InvalidInteger), |num| Ok(num)),
+            _ => Err(Error::InvalidInteger),
+        }
+    }
+
+    pub fn float(self) -> Result<f64> {
+        match self {
+            Self::Number(val) => val
+                .to_string()
+                .parse()
+                .map_or(Err(Error::InvalidFloat), |num| Ok(num)),
+            _ => Err(Error::InvalidFloat),
+        }
     }
 }
 
