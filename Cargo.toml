@@ -7,12 +7,10 @@ license = "Apache-2.0"
 homepage = "https://github.com/ashyanSpada/expression_engine_rs"
 keywords = [
     "rule-engine",
-    "expression",
+    "expression-engine",
     "expressionengine", 
-    "rust-library",
-    "expression-evaluator",
     "ruleengine",
-    "mathengine"
+    "math-engine"
     ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
