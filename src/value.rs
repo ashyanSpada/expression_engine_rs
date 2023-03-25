@@ -3,7 +3,7 @@ use crate::error::Error;
 use rust_decimal::prelude::*;
 use std::fmt;
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Value {
     String(String),
     Number(Decimal),
@@ -114,24 +114,6 @@ impl Value {
     }
 }
 
-use crate::impl_value_from_for_number;
-
-impl_value_from_for_number!(
-    [i128, from_i128],
-    [i64, from_i64],
-    [i32, from_i32],
-    [i16, from_i16],
-    [i8, from_i8],
-    [u128, from_u128],
-    [u64, from_u64],
-    [u32, from_u32],
-    [u16, from_u16],
-    [u8, from_u8],
-    [f64, from_f64],
-    [f32, from_f32]
-);
-
-#[macro_export]
 macro_rules! impl_value_from_for_number {
     ($([$number_type:tt, $method_name: ident]),+) => {
         $(
@@ -143,3 +125,18 @@ macro_rules! impl_value_from_for_number {
         )+
     };
 }
+
+impl_value_from_for_number!(
+    [i128, from_i128],
+    [i32, from_i32],
+    [i64, from_i64],
+    [i16, from_i16],
+    [i8, from_i8],
+    [u128, from_u128],
+    [u64, from_u64],
+    [u32, from_u32],
+    [u16, from_u16],
+    [u8, from_u8],
+    [f64, from_f64],
+    [f32, from_f32]
+);

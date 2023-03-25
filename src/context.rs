@@ -1,5 +1,4 @@
 use crate::define::Result;
-use crate::error::Error;
 use crate::function::InnerFunction;
 use crate::value::Value;
 use core::clone::Clone;
@@ -19,11 +18,11 @@ impl Context {
         Context(Arc::new(Mutex::new(HashMap::new())))
     }
 
-    pub fn set_func(&mut self, name: &String, func: Arc<InnerFunction>) {
+    pub fn set_func(&mut self, name: &str, func: Arc<InnerFunction>) {
         self.0
             .lock()
             .unwrap()
-            .insert(name.clone(), ContextValue::Function(func.clone()));
+            .insert(name.to_string(), ContextValue::Function(func.clone()));
     }
 
     pub fn set_variable(&mut self, name: &str, value: Value) {
@@ -68,4 +67,52 @@ impl Context {
             ContextValue::Function(func) => func(Vec::new()),
         }
     }
+}
+
+///
+///```rust
+/// use expression_engine::create_context;
+/// use expression_engine::Value;
+/// let a = create_context!("d" => 3.5, "c" => Arc::new(|params| {
+///    Ok(Value::from(3))
+/// }));
+///```
+///
+///
+#[macro_export]
+macro_rules! create_context {
+    (($ctx:expr) $k:expr => Arc::new($($v:tt)*), $($tt:tt)*) => {{
+        $ctx.set_func($k, Arc::new($($v)*));
+        $crate::create_context!(($ctx) $($tt)*);
+    }};
+
+    (($ctx:expr) $k:expr => $v:expr, $($tt:tt)*) => {{
+        $ctx.set_variable($k, Value::from($v));
+        $crate::create_context!(($ctx) $($tt)*);
+    }};
+
+    (($ctx:expr) $k:expr => Arc::new($($v:tt)*)) => {{
+        $ctx.set_func($k, Arc::new($($v)*));
+    }};
+
+    (($ctx:expr) $k:expr => $v:expr) => {{
+        $ctx.set_variable($k, Value::from($v));
+    }};
+
+    (($ctx:expr)) => {};
+
+    ($($tt:tt)*) => {{
+        use std::sync::Arc;
+        let mut ctx = $crate::Context::new();
+        $crate::create_context!((&mut ctx) $($tt)*);
+        ctx
+    }};
+}
+
+#[test]
+fn test() {
+    use std::sync::Arc;
+    let a = create_context!("d" => 3, "c" => Arc::new(|params| {
+            Ok(Value::from(3))
+    }));
 }

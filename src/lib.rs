@@ -27,16 +27,15 @@ mod context;
 /// Calling the engine is simple. At first, define the expression you want to execute. Secondly, create a context to cache the pre-defined inner functions and variables. And then, register the variables and functions to the context. Finally, call the execute function with  the expression and context to get the executing result.
 ///
 /// ``` rust
-/// use expression_engine::Value;
-/// use expression_engine::Context;
-/// use expression_engine::execute;
-/// let input = "(3+4)*5+mm*2";
-/// let mut ctx = Context::new();
-/// ctx.set_variable("mm", Value::from(2));
-/// match execute(input, ctx) {
-///     Err(e) => println!("{}", e),
-///     Ok(param) => println!("ans is {}", param),
-/// };
+/// use expression_engine::{create_context, execute, Value};
+/// let input = "c = 5+3; c+=10+f; c";
+/// let ctx = create_context!(
+///     "d" => 2,
+///     "b" => true,
+///     "f" => Arc::new(|params| Ok(Value::from(3)))
+/// );
+/// let ans = execute(input, ctx).unwrap();
+/// assert_eq!(ans, Value::from(21))
 /// ```
 pub fn execute(expr: &str, mut ctx: context::Context) -> define::Result<value::Value> {
     ast::AST::new(expr)?
@@ -49,11 +48,12 @@ pub type Context = context::Context;
 
 #[test]
 fn test_exec() {
-    let input = "c = 5+3; c>>=10; c";
-    let mut ctx = Context::new();
-    ctx.set_variable(&String::from("mm"), Value::from(0.2));
-    match execute(input, ctx) {
-        Err(e) => println!("{}", e),
-        Ok(param) => println!("ans is {}", param),
-    }
+    let input = "c = 5+3; c+=10+f; c";
+    let ctx = create_context!(
+        "d" => 2,
+        "b" => true,
+        "f" => Arc::new(|params| Ok(Value::from(3)))
+    );
+    let ans = execute(input, ctx).unwrap();
+    assert_eq!(ans, Value::from(21))
 }

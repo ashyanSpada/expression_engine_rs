@@ -27,13 +27,9 @@ impl InnerFunctionManager {
             Arc::new(|params| {
                 let mut min = None;
                 for param in params.into_iter() {
-                    match param {
-                        Value::Number(num) => {
-                            if min.is_none() || num < min.unwrap() {
-                                min = Some(num);
-                            }
-                        }
-                        _ => return Err(Error::ShouldBeNumber()),
+                    let num = param.decimal()?;
+                    if min.is_none() || num < min.unwrap() {
+                        min = Some(num);
                     }
                 }
                 Ok(Value::Number(min.unwrap()))
@@ -45,13 +41,9 @@ impl InnerFunctionManager {
             Arc::new(|params| {
                 let mut max = None;
                 for param in params.into_iter() {
-                    match param {
-                        Value::Number(num) => {
-                            if max.is_none() || num > max.unwrap() {
-                                max = Some(num);
-                            }
-                        }
-                        _ => return Err(Error::ShouldBeNumber()),
+                    let num = param.decimal()?;
+                    if max.is_none() || num > max.unwrap() {
+                        max = Some(num);
                     }
                 }
                 Ok(Value::Number(max.unwrap()))
@@ -63,12 +55,7 @@ impl InnerFunctionManager {
             Arc::new(|params| {
                 let mut ans = Decimal::ZERO;
                 for param in params.into_iter() {
-                    match param {
-                        Value::Number(num) => {
-                            ans += num;
-                        }
-                        _ => return Err(Error::ShouldBeNumber()),
-                    }
+                    ans += param.decimal()?;
                 }
                 Ok(Value::Number(ans))
             }),
@@ -79,12 +66,7 @@ impl InnerFunctionManager {
             Arc::new(|params| {
                 let mut ans = Decimal::ONE;
                 for param in params.into_iter() {
-                    match param {
-                        Value::Number(num) => {
-                            ans *= num;
-                        }
-                        _ => return Err(Error::ShouldBeNumber()),
-                    }
+                    ans *= param.decimal()?;
                 }
                 Ok(Value::Number(ans))
             }),
@@ -104,32 +86,4 @@ impl InnerFunctionManager {
         }
         Ok(ans.unwrap().clone())
     }
-}
-
-#[macro_export]
-macro_rules! func {
-    ($func:expr) => {
-        Arc::new($func)
-    };
-}
-
-#[test]
-fn test_register() {
-    use crate::func;
-    let mut m = InnerFunctionManager::new();
-    m.register(
-        "test",
-        func!(|params| {
-            let mut ans = Decimal::ZERO;
-            for param in params.into_iter() {
-                match param {
-                    Value::Number(num) => {
-                        ans += num;
-                    }
-                    _ => return Err(Error::ShouldBeNumber()),
-                }
-            }
-            Ok(Value::Number(ans))
-        }),
-    );
 }
