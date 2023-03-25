@@ -12,6 +12,8 @@ keywords = [
     "expressionengine", 
     "ruleengine"
     ]
+repository = "https://github.com/ashyanSpada/expression_engine_rs"
+documentation = "https://docs.rs/expression_engine/latest/expression_engine/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
