@@ -11,13 +11,15 @@ Expression engine aims to provide an engine for users that can execute complex l
 Calling the engine is simple. At first, define the expression you want to execute. Secondly, create a context to cache the pre-defined inner functions and variables. And then, register the variables and functions to the context. Finally, call the execute function with  the expression and context to get the executing result.
 
 ```rust
-let input = "(3+4)*5+mm*2";  // the input is an expression
-let mut ctx = Context::new(); // create a context
-ctx.set_variable(&String::from("mm"), Param::Number(Decimal::new(2, 1)));
-match execute(input, ctx) {
-    Err(e) => println!("{}", e),
-    Ok(param) => println!("ans is {}", param),
-}
+use expression_engine::{create_context, execute, Value};
+let input = "c = 5+3; c+=10+f; c";
+let ctx = create_context!(
+     "d" => 2,
+     "b" => true,
+     "f" => Arc::new(|params| Ok(Value::from(3)))
+);
+let ans = execute(input, ctx).unwrap();
+assert_eq!(ans, Value::from(21))
 ```
 
 ## Features
