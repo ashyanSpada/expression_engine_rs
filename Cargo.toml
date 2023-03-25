@@ -1,9 +1,19 @@
 [package]
 name = "expression_engine"
-version = "0.5.0"
+version = "0.5.1"
 edition = "2021"
 description = "An expression engine written in pure rust"
 license = "Apache-2.0"
+homepage = "https://github.com/ashyanSpada/expression_engine_rs"
+keywords = [
+    "rule-engine",
+    "expression",
+    "expressionengine", 
+    "rust-library",
+    "expression-evaluator",
+    "ruleengine",
+    "mathengine"
+    ]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
