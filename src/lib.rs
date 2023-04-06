@@ -21,7 +21,7 @@ mod tokenizer;
 #[macro_use]
 mod value;
 mod context;
-mod decorator;
+mod descriptor;
 
 /// ## Usage
 ///
