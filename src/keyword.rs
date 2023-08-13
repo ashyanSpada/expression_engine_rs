@@ -1,8 +1,9 @@
+use crate::store::Store;
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum KeywordType {
     Unknown,
     Reference,
@@ -23,12 +24,22 @@ pub struct KeywordManager {
 impl KeywordManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, KeywordType>>> = OnceCell::new();
-        let store = STORE.get_or_init(|| Mutex::new(Self::internal_register(HashMap::new())));
+        let store = STORE.get_or_init(|| {
+            let tmp = Mutex::new(HashMap::new());
+            tmp
+        });
         KeywordManager { store: store }
     }
 
-    pub fn register(&mut self, keyword: String, typ: KeywordType) {
-        self.store.lock().unwrap().insert(keyword, typ);
+    pub fn init(&mut self) {
+        let list = vec!["?", ":", "not"];
+        for i in list {
+            self.register(i, KeywordType::Op);
+        }
+    }
+
+    pub fn register(&mut self, keyword: &str, typ: KeywordType) {
+        self.store.lock().unwrap().insert(keyword.to_string(), typ);
     }
 
     pub fn get_type(&self, keyword: &str) -> KeywordType {
@@ -41,10 +52,11 @@ impl KeywordManager {
         ans.unwrap().clone()
     }
 
-    fn internal_register(mut m: HashMap<String, KeywordType>) -> HashMap<String, KeywordType> {
-        m.insert("beginWith".to_string(), KeywordType::Op);
-        m.insert("endWith".to_string(), KeywordType::Op);
-        m.insert("in".to_string(), KeywordType::Op);
-        m
+    pub fn list(&self) -> Vec<(String, KeywordType)> {
+        let binding = self.store.lock().unwrap();
+        binding
+            .iter()
+            .map(|(key, value)| (key.to_string(), value.clone()))
+            .collect()
     }
 }

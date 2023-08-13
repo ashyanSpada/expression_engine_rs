@@ -38,6 +38,7 @@ impl<'a> Tokenizer<'a> {
     pub fn next(&mut self) -> Result<Token> {
         self.eat_whitespace();
         self.prev_token = self.cur_token.clone();
+        println!("{:?}", self.peek_one());
         self.cur_token = match self.next_one() {
             Some((
                 start,
@@ -63,6 +64,8 @@ impl<'a> Tokenizer<'a> {
                         .is_op()
                     {
                         self.next_one();
+                    } else {
+                        break;
                     }
                 }
                 None => break,
@@ -75,14 +78,6 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn other_token(&mut self, ch: char, start: usize) -> Result<Token> {
-        // if (ch == 't' && self.try_parse_ident("rue")) || (ch == 'f' && self.try_parse_ident("alse"))
-        // {
-        //     return self.bool_token(start, ch == 't');
-        // }
-        // if is_param_char(ch) {
-        //     return self.op_reference_function_token(start);
-        // }
-        // Err(Error::NotSupportedChar(start, ch))
         if self.try_parse_op(start) {
             return self.operator_token(start);
         }
@@ -98,6 +93,7 @@ impl<'a> Tokenizer<'a> {
     fn try_parse_op(&self, start: usize) -> bool {
         let mut tmp = self.clone();
         loop {
+            print!("hhah");
             match tmp.peek_one() {
                 Some((_, ch)) => {
                     if is_whitespace_char(ch) || is_delim_char(ch) {
@@ -298,6 +294,8 @@ fn is_param_char(ch: char) -> bool {
 
 #[test]
 fn test() {
+    use crate::init::init;
+    init();
     let input = "{1:2+3*2};";
     let mut tokenizer = Tokenizer::new(input);
     loop {

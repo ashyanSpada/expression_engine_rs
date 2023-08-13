@@ -368,6 +368,10 @@ impl<'a> AST<'a> {
         })
     }
 
+    fn is_eof(&self) -> bool {
+        self.cur_tok().is_eof()
+    }
+
     pub fn next(&mut self) -> Result<Token> {
         self.tokenizer.next()
     }
@@ -410,7 +414,7 @@ impl<'a> AST<'a> {
     pub fn parse_chain_expression(&mut self) -> Result<ExprAST> {
         let mut ans = Vec::new();
         loop {
-            if self.cur_tok().is_eof() {
+            if self.is_eof() {
                 break;
             }
             ans.push(self.parse_expression()?);
@@ -483,45 +487,42 @@ impl<'a> AST<'a> {
             return Err(Error::NoCloseDelim);
         }
         self.next()?;
-        return Ok(expr);
-    }
-
-    fn parse_open_brace(&mut self) -> Result<ExprAST> {
-        self.next()?;
-        let mut m = Vec::new();
-        if self.cur_tok().is_close_brace() {
-            return Ok(ExprAST::Map(m));
-        }
-        loop {
-            let k = self.parse_expression()?;
-            self.expect(":")?;
-            let v = self.parse_expression()?;
-            m.push((k, v));
-            if self.cur_tok().is_close_brace() {
-                self.next()?;
-                break;
-            }
-            self.expect(",")?;
-        }
-        Ok(ExprAST::Map(m))
+        Ok(expr)
     }
 
     fn parse_open_bracket(&mut self) -> Result<ExprAST> {
         self.next()?;
         let mut exprs = Vec::new();
-        if self.cur_tok().is_close_bracket() {
-            self.next()?;
-            return Ok(ExprAST::List(exprs));
-        }
         loop {
-            exprs.push(self.parse_expression()?);
-            if self.cur_tok().is_close_bracket() {
-                self.next()?;
+            if self.is_eof() || self.cur_tok().is_close_bracket() {
                 break;
             }
-            self.expect(",")?;
+            exprs.push(self.parse_expression()?);
+            if !self.cur_tok().is_close_bracket() {
+                self.expect(",")?;
+            }
         }
+        self.expect("]")?;
         Ok(ExprAST::List(exprs))
+    }
+
+    fn parse_open_brace(&mut self) -> Result<ExprAST> {
+        self.next()?;
+        let mut m = Vec::new();
+        loop {
+            if self.is_eof() || self.cur_tok().is_close_brace() {
+                break;
+            }
+            let k = self.parse_expression()?;
+            self.expect(":")?;
+            let v = self.parse_expression()?;
+            m.push((k, v));
+            if !self.cur_tok().is_close_brace() {
+                self.expect(",")?;
+            }
+        }
+        self.expect("}")?;
+        Ok(ExprAST::Map(m))
     }
 
     fn parse_unary(&mut self, op: String) -> Result<ExprAST> {
