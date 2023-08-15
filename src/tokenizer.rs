@@ -194,7 +194,7 @@ impl<'a> Tokenizer<'a> {
         loop {
             match self.peek_one() {
                 Some((_, ch)) => {
-                    if (ch == '+' || ch == '-') && (self.cur_char != 'e' || self.cur_char != 'E') {
+                    if (ch == '+' || ch == '-') && (self.cur_char != 'e' && self.cur_char != 'E') {
                         break;
                     }
                     if is_digit_char(ch) {
@@ -206,7 +206,7 @@ impl<'a> Tokenizer<'a> {
                 None => break,
             }
         }
-        match rust_decimal::Decimal::from_str(&self.input[start..self.current()]) {
+        match Decimal::from_str(&self.input[start..self.current()]) {
             Ok(val) => Ok(Token::Number(val, Span(start, self.current()))),
             Err(_) => Err(Error::InvalidNumber(
                 self.input[start..self.current()].to_string(),
@@ -294,29 +294,70 @@ fn is_param_char(ch: char) -> bool {
 mod tests {
     use super::Tokenizer;
     use crate::init::init;
+    use crate::token::DelimTokenType;
     use crate::token::Span;
     use crate::token::Token;
+    use crate::token::Token::*;
     use rstest::rstest;
     use rust_decimal::prelude::*;
 
     #[rstest]
-    #[case("true", Token::Bool(true, Span(0, 4)))]
-    #[case(" True", Token::Bool(true, Span(1, 5)))]
-    #[case(" \nfalse", Token::Bool(false, Span(2, 7)))]
-    #[case(" \t False", Token::Bool(false, Span(3, 8)))]
-    fn test_bool(#[case] input: &str, #[case] output: Token) {
+    #[case("true", true, 0, 4)]
+    #[case(" True", true, 1, 5)]
+    #[case(" \nfalse", false, 2, 7)]
+    #[case(" \t False", false, 3, 8)]
+    fn test_bool(
+        #[case] input: &str,
+        #[case] value: bool,
+        #[case] start: usize,
+        #[case] end: usize,
+    ) {
         init();
         let mut tokenizer = Tokenizer::new(input);
         let ans = tokenizer.next().unwrap();
-        assert_eq!(ans, output)
+        assert_eq!(ans, Bool(value, Span(start, end)))
     }
 
     #[rstest]
-    #[case(" 1234 ", Token::Number(Decimal::from_i32(1234).unwrap_or_default(), Span(1, 5)))]
-    fn test_number(#[case] input: &str, #[case] output: Token) {
+    #[case(" 1234 ", "1234", 1, 5)]
+    #[case(" 5.678 ", "5.678", 1, 6)]
+    #[case(" 10e-3 ", "10e-3", 1, 6)]
+    #[case(" 10e03 ", "10e03", 1, 6)]
+    #[case(" 2e+3 ", "2e+3", 1, 5)]
+    fn test_number(
+        #[case] input: &str,
+        #[case] value: &str,
+        #[case] start: usize,
+        #[case] end: usize,
+    ) {
         init();
         let mut tokenizer = Tokenizer::new(input);
         let ans = tokenizer.next().unwrap();
-        assert_eq!(ans, output)
+        assert_eq!(
+            ans,
+            Number(
+                Decimal::from_str(value).unwrap_or_default(),
+                Span(start, end)
+            )
+        )
+    }
+
+    #[rstest]
+    #[case(" { ", DelimTokenType::OpenBrace, 1, 2)]
+    #[case(" } ", DelimTokenType::CloseBrace, 1, 2)]
+    #[case("  [", DelimTokenType::OpenBracket, 2, 3)]
+    #[case("\n]", DelimTokenType::CloseBracket, 1, 2)]
+    #[case(" ( ", DelimTokenType::OpenParen, 1, 2)]
+    #[case("  \t)", DelimTokenType::CloseParen, 3, 4)]
+    fn test_delim(
+        #[case] input: &str,
+        #[case] typ: DelimTokenType,
+        #[case] start: usize,
+        #[case] end: usize,
+    ) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, Delim(typ, Span(start, end)))
     }
 }
