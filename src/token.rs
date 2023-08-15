@@ -2,7 +2,7 @@ use core::clone::Clone;
 use rust_decimal::Decimal;
 use std::fmt;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum DelimTokenType {
     // "("
     OpenParen,
@@ -65,10 +65,10 @@ impl DelimTokenType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Span(pub usize, pub usize);
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum Token {
     Operator(String, Span),
     Delim(DelimTokenType, Span),

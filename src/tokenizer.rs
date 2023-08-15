@@ -38,7 +38,6 @@ impl<'a> Tokenizer<'a> {
     pub fn next(&mut self) -> Result<Token> {
         self.eat_whitespace();
         self.prev_token = self.cur_token.clone();
-        println!("{:?}", self.peek_one());
         self.cur_token = match self.next_one() {
             Some((
                 start,
@@ -93,7 +92,6 @@ impl<'a> Tokenizer<'a> {
     fn try_parse_op(&self, start: usize) -> bool {
         let mut tmp = self.clone();
         loop {
-            print!("hhah");
             match tmp.peek_one() {
                 Some((_, ch)) => {
                     if is_whitespace_char(ch) || is_delim_char(ch) {
@@ -292,19 +290,33 @@ fn is_param_char(ch: char) -> bool {
         || ch == '_';
 }
 
-#[test]
-fn test() {
+#[cfg(test)]
+mod tests {
+    use super::Tokenizer;
     use crate::init::init;
-    init();
-    let input = "{1:2+3*2};";
-    let mut tokenizer = Tokenizer::new(input);
-    loop {
-        match tokenizer.next() {
-            Ok(Token::EOF) => break,
-            Ok(t) => {
-                println!("{}", t)
-            }
-            Err(e) => println!("{}", e),
-        }
+    use crate::token::Span;
+    use crate::token::Token;
+    use rstest::rstest;
+    use rust_decimal::prelude::*;
+
+    #[rstest]
+    #[case("true", Token::Bool(true, Span(0, 4)))]
+    #[case(" True", Token::Bool(true, Span(1, 5)))]
+    #[case(" \nfalse", Token::Bool(false, Span(2, 7)))]
+    #[case(" \t False", Token::Bool(false, Span(3, 8)))]
+    fn test_bool(#[case] input: &str, #[case] output: Token) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, output)
+    }
+
+    #[rstest]
+    #[case(" 1234 ", Token::Number(Decimal::from_i32(1234).unwrap_or_default(), Span(1, 5)))]
+    fn test_number(#[case] input: &str, #[case] output: Token) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, output)
     }
 }

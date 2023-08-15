@@ -20,3 +20,6 @@ documentation = "https://docs.rs/expression_engine/latest/expression_engine/"
 [dependencies]
 rust_decimal = "1.26.1"
 once_cell = "1.17.1"
+
+[dev-dependencies]
+rstest = "0.18.2"
