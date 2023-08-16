@@ -9,7 +9,7 @@ use crate::value::Value;
 use rust_decimal::prelude::*;
 use std::fmt;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Literal {
     Number(Decimal),
     Bool(bool),
@@ -27,7 +27,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ExprAST {
     Literal(Literal),
     Unary(String, Box<ExprAST>),
@@ -570,23 +570,105 @@ fn test() {
     }
 }
 
-#[test]
-fn test_exec() {
-    let input = "c=5;c";
-    // input = "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1*4+2";
-    let ast = AST::new(input);
-    let mut ctx = Context::new();
-    ctx.set_variable("mm", Value::from(12.0_f64));
-    match ast {
-        Ok(mut a) => {
-            let expr = a.parse_chain_expression().unwrap();
-            println!("expr is {}", expr);
-            println!("string is {}", expr.expr());
-            let ans = expr.exec(&mut ctx).unwrap();
-            println!("ans is {}", ans);
-        }
-        Err(e) => {
-            println!("{}", e);
-        }
+#[cfg(test)]
+mod tests {
+    use crate::ast::{ExprAST, Literal, AST};
+    use crate::init::init;
+    use rstest::rstest;
+    use rust_decimal::prelude::*;
+
+    #[rstest]
+    #[case("5", ExprAST::Literal(Literal::Number(Decimal::from_str("5").unwrap_or_default())))]
+    #[case("true", ExprAST::Literal(Literal::Bool(true)))]
+    #[case("\n false", ExprAST::Literal(Literal::Bool(false)))]
+    #[case("\n haha", ExprAST::Reference("haha".to_string()))]
+    #[case("'haha  '", ExprAST::Literal(Literal::String("haha  ".to_string())))]
+    #[case("!a", ExprAST::Unary(
+        "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+    ))]
+    fn test_parse_expression_simple(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case("2+3*5", ExprAST::Binary(
+        "+".to_string(), 
+        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
+        Box::new(ExprAST::Binary(
+            "*".to_string(),
+            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
+            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
+        ))
+    ))]
+    #[case("(2+3)*5", ExprAST::Binary(
+        "*".to_string(), 
+        Box::new(ExprAST::Binary(
+            "*".to_string(),
+            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
+            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
+        )),
+        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
+    ))]
+    fn test_parse_expression_binary(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case(" [] ", ExprAST::List(Vec::new()))]
+    #[case("[1,!a,(2+3)*5,true, 'hahd', [1,!a,(2+3)*5,true, 'hahd']]", ExprAST::List(
+        vec![
+            ExprAST::Literal(Literal::Number(Decimal::from_str("1").unwrap_or_default())),
+            ExprAST::Unary(
+                "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+            ),
+            ExprAST::Binary(
+                "*".to_string(), 
+                Box::new(ExprAST::Binary(
+                    "+".to_string(),
+                    Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
+                    Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
+                )),
+                Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
+            ),
+            ExprAST::Literal(Literal::Bool(true)),
+            ExprAST::Literal(Literal::String("hahd".to_string())),
+            ExprAST::List(
+                vec![
+                    ExprAST::Literal(Literal::Number(Decimal::from_str("1").unwrap_or_default())),
+                    ExprAST::Unary(
+                        "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+                    ),
+                    ExprAST::Binary(
+                        "*".to_string(), 
+                        Box::new(ExprAST::Binary(
+                            "+".to_string(),
+                            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
+                            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
+                        )),
+                        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
+                    ),
+                    ExprAST::Literal(Literal::Bool(true)),
+                    ExprAST::Literal(Literal::String("hahd".to_string())),
+                ],
+            ),
+        ]
+    ))]
+    fn test_parse_expression_list(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
     }
 }
