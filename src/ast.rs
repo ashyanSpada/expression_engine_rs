@@ -406,7 +406,7 @@ impl<'a> AST<'a> {
             Token::Function(name, _) => self.parse_function(name),
             Token::Operator(op, _) => self.parse_unary(op),
             Token::Delim(ty, _) => self.parse_delim(ty),
-            Token::EOF => Ok(ExprAST::None),
+            Token::EOF => Err(Error::UnexpectedEOF(0)),
             _ => Err(Error::UnexpectedToken()),
         }
     }
@@ -668,6 +668,92 @@ mod tests {
         let ast = AST::new(input);
         assert!(ast.is_ok());
         let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case(" true ? 234:'haha'", ExprAST::Ternary(
+        Box::new(ExprAST::Literal(Literal::Bool(true))),
+        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("234").unwrap_or_default()))), 
+        Box::new(ExprAST::Literal(Literal::String("haha".to_string()))),
+        )
+    )]
+    fn test_parse_expression_ternary(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case("  ")]
+    #[case(" [ ")]
+    #[case("[234,")]
+    #[case(" { ")]
+    #[case("{2:")]
+    #[case("{2")]
+    #[case("{2:}")]
+    #[case(" (")]
+    #[case("a(")]
+    #[case("a(,)")]
+    #[case("a(2,true,")]
+    #[case("true ?")]
+    #[case("true ? haha :")]
+    #[case("2+ ")]
+    fn test_parse_expression_error(#[case] input: &str) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_err());
+    }
+
+    #[rstest]
+    #[case(
+        "
+        a=3;
+        a+=4;
+        b=a+5;
+        [a,b]
+    ",
+        ExprAST::Chain(
+            vec![
+                ExprAST::Binary(
+                    "=".to_string(),
+                    Box::new(ExprAST::Reference("a".to_string())),
+                    Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("3").unwrap_or_default())))
+                ),
+                ExprAST::Binary(
+                    "+=".to_string(),
+                    Box::new(ExprAST::Reference("a".to_string())),
+                    Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("4").unwrap_or_default())))
+                ),
+                ExprAST::Binary(
+                    "=".to_string(),
+                    Box::new(ExprAST::Reference("b".to_string())),
+                    Box::new(ExprAST::Binary(
+                        "+".to_string(),
+                        Box::new(ExprAST::Reference("a".to_string())),
+                        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("5").unwrap_or_default())))
+                    ))
+                ),
+                ExprAST::List(
+                    vec![
+                        ExprAST::Reference("a".to_string()),
+                        ExprAST::Reference("b".to_string())
+                    ]
+                ),
+            ]
+        ),
+    )]
+    fn test_parse_chain_expression(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_chain_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
