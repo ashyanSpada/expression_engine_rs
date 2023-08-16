@@ -131,7 +131,9 @@ impl<'a> Tokenizer<'a> {
                 Some((_, ch)) => {
                     if is_param_char(ch) {
                         self.next_one();
+                        continue;
                     }
+                    break;
                 }
                 None => break,
             }
@@ -359,5 +361,55 @@ mod tests {
         let mut tokenizer = Tokenizer::new(input);
         let ans = tokenizer.next().unwrap();
         assert_eq!(ans, Delim(typ, Span(start, end)))
+    }
+
+    #[rstest]
+    #[case("", EOF)]
+    #[case(" , ", Comma(",".to_string(), Span(1, 2)))]
+    #[case(" ; ", Semicolon(";".to_string(), Span(1, 2)))]
+    #[case(" +=", Operator("+=".to_string(), Span(1,3)))]
+    #[case(" +=+", Operator("+=".to_string(), Span(1,3)))]
+    #[case(" +=9", Operator("+=".to_string(), Span(1,3)))]
+    fn test_other(#[case] input: &str, #[case] output: Token) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, output);
+    }
+
+    #[rstest]
+    #[case(" 'dsfasdfdsa' ", "dsfasdfdsa", 1, 13)]
+    #[case("\"dffd\"", "dffd", 0, 6)]
+    fn test_string(
+        #[case] input: &str,
+        #[case] value: &str,
+        #[case] start: usize,
+        #[case] end: usize,
+    ) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, String(value.to_string(), Span(start, end)));
+    }
+
+    #[rstest]
+    #[case(" d09f_5 ", Reference("d09f_5".to_string(), Span(1, 7)))]
+    #[case(" d09f_5() ", Function("d09f_5".to_string(), Span(1, 7)))]
+    #[case(" d09f_>", Reference("d09f_".to_string(), Span(1, 6)))]
+    fn test_reference_function(#[case] input: &str, #[case] output: Token) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, output);
+    }
+
+    #[rstest]
+    #[case("\"jajd'")]
+    #[case("0e.3")]
+    fn test_err(#[case] input: &str) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next();
+        assert!(ans.is_err())
     }
 }
