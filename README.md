@@ -1,3 +1,4 @@
+[![codecov](https://codecov.io/gh/ashyanSpada/expression_engine_rs/graph/badge.svg?token=H5GNNRVUZQ)](https://codecov.io/gh/ashyanSpada/expression_engine_rs)
 # expression_engine
 
 ## Introduction
