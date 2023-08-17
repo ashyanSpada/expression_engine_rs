@@ -1,5 +1,6 @@
 use crate::define::Result;
 use crate::error::Error;
+use crate::keyword::{KeywordManager, KeywordType};
 use crate::value::Value;
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
@@ -27,201 +28,177 @@ impl BinaryOpFuncManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)>>> =
             OnceCell::new();
-        let store = STORE.get_or_init(|| Mutex::new(Self::internal_register(HashMap::new())));
+        let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
         BinaryOpFuncManager { store: store }
     }
 
-    fn internal_register(
-        mut m: HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)>,
-    ) -> HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)> {
+    pub fn init(&mut self) {
         use BinOpType::*;
-        m.insert(
-            "=".to_string(),
-            (20, SETTER, Arc::new(|left, right| Ok(right))),
-        );
+        self.register("=", 20, SETTER, Arc::new(|left, right| Ok(right)));
 
         for op in vec!["+=", "-=", "*=", "/=", "%="] {
-            m.insert(
-                op.to_string(),
-                (
-                    20,
-                    SETTER,
-                    Arc::new(move |left, right| {
-                        let (mut a, b) = (left.decimal()?, right.decimal()?);
-                        match op {
-                            "+=" => a += b,
-                            "-=" => a -= b,
-                            "*=" => a *= b,
-                            "/=" => a /= b,
-                            "%=" => a %= b,
-                            _ => (),
-                        }
-                        Ok(Value::Number(a))
-                    }),
-                ),
+            self.register(
+                op,
+                20,
+                SETTER,
+                Arc::new(move |left, right| {
+                    let (mut a, b) = (left.decimal()?, right.decimal()?);
+                    match op {
+                        "+=" => a += b,
+                        "-=" => a -= b,
+                        "*=" => a *= b,
+                        "/=" => a /= b,
+                        "%=" => a %= b,
+                        _ => (),
+                    }
+                    Ok(Value::Number(a))
+                }),
             );
         }
 
         for op in vec!["<<=", ">>=", "&=", "^=", "|="] {
-            m.insert(
-                op.to_string(),
-                (
-                    20,
-                    SETTER,
-                    Arc::new(move |left, right| {
-                        let (mut a, b) = (left.integer()?, right.integer()?);
-                        match op {
-                            "<<=" => a <<= b,
-                            ">>=" => a >>= b,
-                            "&=" => a &= b,
-                            "^=" => a ^= b,
-                            "|=" => a |= b,
-                            _ => (),
-                        }
-                        Ok(Value::from(a))
-                    }),
-                ),
+            self.register(
+                op,
+                20,
+                SETTER,
+                Arc::new(move |left, right| {
+                    let (mut a, b) = (left.integer()?, right.integer()?);
+                    match op {
+                        "<<=" => a <<= b,
+                        ">>=" => a >>= b,
+                        "&=" => a &= b,
+                        "^=" => a ^= b,
+                        "|=" => a |= b,
+                        _ => (),
+                    }
+                    Ok(Value::from(a))
+                }),
             );
         }
 
         for (op, precedence) in vec![("||", 40), ("&&", 50)] {
-            m.insert(
-                op.to_string(),
-                (
-                    precedence,
-                    CALC,
-                    Arc::new(move |left, right| {
-                        let (mut a, b) = (left.bool()?, right.bool()?);
-                        match op {
-                            "||" => a = a || b,
-                            "&&" => a = a && b,
-                            _ => (),
-                        }
-                        Ok(Value::from(a))
-                    }),
-                ),
+            self.register(
+                op,
+                precedence,
+                CALC,
+                Arc::new(move |left, right| {
+                    let (mut a, b) = (left.bool()?, right.bool()?);
+                    match op {
+                        "||" => a = a || b,
+                        "&&" => a = a && b,
+                        _ => (),
+                    }
+                    Ok(Value::from(a))
+                }),
             );
         }
 
         for op in vec!["<", "<=", ">", ">="] {
-            m.insert(
-                op.to_string(),
-                (
-                    60,
-                    CALC,
-                    Arc::new(move |left, right| {
-                        let (a, b) = (left.decimal()?, right.decimal()?);
-                        let mut value = false;
-                        match op {
-                            "<" => value = a < b,
-                            "<=" => value = a <= b,
-                            ">" => value = a > b,
-                            ">=" => value = a >= b,
-                            _ => (),
-                        }
-                        Ok(Value::from(value))
-                    }),
-                ),
+            self.register(
+                op,
+                60,
+                CALC,
+                Arc::new(move |left, right| {
+                    let (a, b) = (left.decimal()?, right.decimal()?);
+                    let mut value = false;
+                    match op {
+                        "<" => value = a < b,
+                        "<=" => value = a <= b,
+                        ">" => value = a > b,
+                        ">=" => value = a >= b,
+                        _ => (),
+                    }
+                    Ok(Value::from(value))
+                }),
             );
         }
 
         for op in vec!["==", "!="] {
-            m.insert(
-                op.to_string(),
-                (
-                    60,
-                    CALC,
-                    Arc::new(move |left, right| {
-                        let mut value = false;
-                        match op {
-                            "==" => value = left == right,
-                            "!=" => value = left != right,
-                            _ => (),
-                        }
-                        Ok(Value::from(value))
-                    }),
-                ),
+            self.register(
+                op,
+                60,
+                CALC,
+                Arc::new(move |left, right| {
+                    let mut value = false;
+                    match op {
+                        "==" => value = left == right,
+                        "!=" => value = left != right,
+                        _ => (),
+                    }
+                    Ok(Value::from(value))
+                }),
             );
         }
 
         for (op, precedence) in vec![("|", 70), ("^", 80), ("&", 90), ("<<", 100), (">>", 100)] {
-            m.insert(
-                op.to_string(),
-                (
-                    precedence,
-                    CALC,
-                    Arc::new(move |left, right| {
-                        let (mut a, b) = (left.integer()?, right.integer()?);
-                        match op {
-                            "|" => a |= b,
-                            "^" => a ^= b,
-                            "&" => a &= b,
-                            "<<" => a <<= b,
-                            ">>" => a >>= b,
-                            _ => (),
-                        }
-                        Ok(Value::from(a))
-                    }),
-                ),
+            self.register(
+                op,
+                precedence,
+                CALC,
+                Arc::new(move |left, right| {
+                    let (mut a, b) = (left.integer()?, right.integer()?);
+                    match op {
+                        "|" => a |= b,
+                        "^" => a ^= b,
+                        "&" => a &= b,
+                        "<<" => a <<= b,
+                        ">>" => a >>= b,
+                        _ => (),
+                    }
+                    Ok(Value::from(a))
+                }),
             );
         }
 
         for (op, precedence) in vec![("+", 110), ("-", 110), ("*", 120), ("/", 120), ("%", 120)] {
-            m.insert(
-                op.to_string(),
-                (
-                    precedence,
-                    CALC,
-                    Arc::new(move |left, right| {
-                        let (mut a, b) = (left.decimal()?, right.decimal()?);
-                        match op {
-                            "+" => a += b,
-                            "-" => a -= b,
-                            "*" => a *= b,
-                            "/" => a /= b,
-                            "%" => a %= b,
-                            _ => (),
-                        }
-                        Ok(Value::from(a))
-                    }),
-                ),
+            self.register(
+                op,
+                precedence,
+                CALC,
+                Arc::new(move |left, right| {
+                    let (mut a, b) = (left.decimal()?, right.decimal()?);
+                    match op {
+                        "+" => a += b,
+                        "-" => a -= b,
+                        "*" => a *= b,
+                        "/" => a /= b,
+                        "%" => a %= b,
+                        _ => (),
+                    }
+                    Ok(Value::from(a))
+                }),
             );
         }
 
-        m.insert(
-            "beginWith".to_string(),
-            (
-                200,
-                BinOpType::CALC,
-                Arc::new(|left, right| {
-                    let (a, b) = (left.string()?, right.string()?);
-                    Ok(Value::from(a.starts_with(&b)))
-                }),
-            ),
+        self.register(
+            "beginWith",
+            200,
+            BinOpType::CALC,
+            Arc::new(|left, right| {
+                let (a, b) = (left.string()?, right.string()?);
+                Ok(Value::from(a.starts_with(&b)))
+            }),
         );
 
-        m.insert(
-            "endWith".to_string(),
-            (
-                200,
-                BinOpType::CALC,
-                Arc::new(|left, right| {
-                    let (a, b) = (left.string()?, right.string()?);
-                    Ok(Value::from(a.ends_with(&b)))
-                }),
-            ),
+        self.register(
+            "endWith",
+            200,
+            BinOpType::CALC,
+            Arc::new(|left, right| {
+                let (a, b) = (left.string()?, right.string()?);
+                Ok(Value::from(a.ends_with(&b)))
+            }),
         );
-
-        m
     }
 
     pub fn register(
         &mut self,
         op: &str,
-        op_type: BinOpType,
         precidence: i32,
+        op_type: BinOpType,
         f: Arc<BinaryOpFunc>,
     ) {
+        KeywordManager::new().register(op, KeywordType::Op);
         self.store
             .lock()
             .unwrap()
@@ -275,15 +252,13 @@ impl BinaryOpFuncManager {
 impl UnaryOpFuncManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, Arc<UnaryOpFunc>>>> = OnceCell::new();
-        let store = STORE.get_or_init(|| Mutex::new(Self::internal_register(HashMap::new())));
+        let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
         UnaryOpFuncManager { store: store }
     }
 
-    fn internal_register(
-        mut m: HashMap<String, Arc<UnaryOpFunc>>,
-    ) -> HashMap<String, Arc<UnaryOpFunc>> {
-        m.insert(
-            "-".to_string(),
+    pub fn init(&mut self) {
+        self.register(
+            "-",
             Arc::new(|param| {
                 let a = match param {
                     Value::Number(a) => a,
@@ -293,8 +268,8 @@ impl UnaryOpFuncManager {
             }),
         );
 
-        m.insert(
-            "+".to_string(),
+        self.register(
+            "+",
             Arc::new(|param| {
                 let a = match param {
                     Value::Number(a) => a,
@@ -304,8 +279,8 @@ impl UnaryOpFuncManager {
             }),
         );
 
-        m.insert(
-            "!".to_string(),
+        self.register(
+            "!",
             Arc::new(|param| {
                 let a = match param {
                     Value::Bool(value) => !value,
@@ -314,11 +289,10 @@ impl UnaryOpFuncManager {
                 Ok(Value::Bool(a))
             }),
         );
-
-        m
     }
 
     pub fn register(&mut self, op: &str, f: Arc<UnaryOpFunc>) {
+        KeywordManager::new().register(op, KeywordType::Op);
         self.store.lock().unwrap().insert(op.to_string(), f);
     }
 

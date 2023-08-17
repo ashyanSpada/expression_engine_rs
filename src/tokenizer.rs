@@ -41,8 +41,8 @@ impl<'a> Tokenizer<'a> {
         self.cur_token = match self.next_one() {
             Some((
                 start,
-                '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':',
-            )) => self.operator_token(start),
+                '+' | '-' | '*' | '/' | '^' | '%' | '&' | '!' | '=' | '?' | ':' | '>' | '<' | '|',
+            )) => self.special_op_token(start),
             Some((start, '(' | ')' | '[' | ']' | '{' | '}')) => self.delim_token(start),
             Some((start, _ch @ '0'..='9')) => self.number_token(start),
             Some((start, '"' | '\'')) => self.string_token(start),
@@ -54,15 +54,91 @@ impl<'a> Tokenizer<'a> {
         Ok(self.cur_token.clone())
     }
 
+    fn special_op_token(&mut self, start: usize) -> Result<Token> {
+        loop {
+            match self.peek_one() {
+                Some((_, ch)) => {
+                    if KeywordManager::new()
+                        .get_type(&(self.input[start..self.current() + 1].to_string()))
+                        .is_op()
+                    {
+                        self.next_one();
+                    } else {
+                        break;
+                    }
+                }
+                None => break,
+            }
+        }
+        Ok(Token::Operator(
+            self.input[start..self.current()].to_string(),
+            Span(start, self.current()),
+        ))
+    }
+
     fn other_token(&mut self, ch: char, start: usize) -> Result<Token> {
-        if (ch == 't' && self.try_parse_ident("rue")) || (ch == 'f' && self.try_parse_ident("alse"))
-        {
-            return self.bool_token(start, ch == 't');
+        if self.try_parse_op(start) {
+            return self.operator_token(start);
         }
-        if is_param_char(ch) {
-            return self.op_reference_function_token(start);
+        let (atom, start) = self.parse_var(start);
+        if atom == "True" || atom == "true" {
+            return self.bool_token(start, true);
+        } else if atom == "False" || atom == "false" {
+            return self.bool_token(start, false);
         }
-        Err(Error::NotSupportedChar(start, ch))
+        return self.function_or_reference_token(atom, start);
+    }
+
+    fn try_parse_op(&self, start: usize) -> bool {
+        let mut tmp = self.clone();
+        loop {
+            match tmp.peek_one() {
+                Some((_, ch)) => {
+                    if is_whitespace_char(ch) || is_delim_char(ch) {
+                        break;
+                    }
+                    tmp.next_one();
+                }
+                None => break,
+            }
+        }
+        KeywordManager::new()
+            .get_type(&tmp.input[start..tmp.current()])
+            .is_op()
+    }
+
+    fn operator_token(&mut self, start: usize) -> Result<Token> {
+        loop {
+            match self.peek_one() {
+                Some((_, ch)) => {
+                    if is_whitespace_char(ch) || is_delim_char(ch) {
+                        break;
+                    }
+                    self.next_one();
+                }
+                None => break,
+            }
+        }
+        return Ok(Token::Operator(
+            self.input[start..self.current()].into(),
+            Span(start, self.current()),
+        ));
+    }
+
+    fn parse_var(&mut self, start: usize) -> (String, usize) {
+        loop {
+            match self.peek_one() {
+                Some((_, ch)) => {
+                    if is_param_char(ch) {
+                        self.next_one();
+                        continue;
+                    }
+                    break;
+                }
+                None => break,
+            }
+        }
+        (self.input[start..self.current()].into(), start)
     }
 
     pub fn peek(&self) -> Result<Token> {
@@ -116,30 +192,11 @@ impl<'a> Tokenizer<'a> {
         ))
     }
 
-    fn operator_token(&mut self, start: usize) -> Result<Token> {
-        loop {
-            match self.peek_one() {
-                Some((_, ch)) => {
-                    if is_operator_char(ch) {
-                        self.next_one();
-                    } else {
-                        break;
-                    }
-                }
-                None => break,
-            }
-        }
-        Ok(Token::Operator(
-            self.input[start..self.current()].to_owned(),
-            Span(start, self.current()),
-        ))
-    }
-
     fn number_token(&mut self, start: usize) -> Result<Token> {
         loop {
             match self.peek_one() {
                 Some((_, ch)) => {
-                    if (ch == '+' || ch == '-') && (self.cur_char != 'e' || self.cur_char != 'E') {
+                    if (ch == '+' || ch == '-') && (self.cur_char != 'e' && self.cur_char != 'E') {
                         break;
                     }
                     if is_digit_char(ch) {
@@ -151,7 +208,7 @@ impl<'a> Tokenizer<'a> {
                 None => break,
             }
         }
-        match rust_decimal::Decimal::from_str(&self.input[start..self.current()]) {
+        match Decimal::from_str(&self.input[start..self.current()]) {
             Ok(val) => Ok(Token::Number(val, Span(start, self.current()))),
             Err(_) => Err(Error::InvalidNumber(
                 self.input[start..self.current()].to_string(),
@@ -159,40 +216,12 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    fn op_reference_function_token(&mut self, start: usize) -> Result<Token> {
-        loop {
-            match self.peek_one() {
-                Some((_, ch)) => {
-                    if is_param_char(ch) {
-                        self.next_one();
-                    } else {
-                        break;
-                    }
-                }
-                None => break,
-            }
+    fn function_or_reference_token(&self, atom: String, start: usize) -> Result<Token> {
+        let peek = self.peek()?;
+        if peek.is_open_paren() {
+            return Ok(Token::Function(atom, Span(start, self.current())));
         }
-        let name = self.input[start..self.current()].to_string();
-        match KeywordManager::new().get_type(&name) {
-            KeywordType::Function => Ok(Token::Function(name.clone(), Span(start, self.current()))),
-            KeywordType::Op => Ok(Token::Operator(name.clone(), Span(start, self.current()))),
-            KeywordType::Reference => {
-                Ok(Token::Reference(name.clone(), Span(start, self.current())))
-            }
-            KeywordType::Unknown => {
-                let token = self.peek()?;
-                if token.is_open_paren() {
-                    return Ok(Token::Function(
-                        self.input[start..self.current()].to_owned(),
-                        Span(start, self.current()),
-                    ));
-                }
-                return Ok(Token::Reference(
-                    self.input[start..self.current()].to_owned(),
-                    Span(start, self.current()),
-                ));
-            }
-        }
+        Ok(Token::Reference(atom, Span(start, self.current())))
     }
 
     fn string_token(&mut self, start: usize) -> Result<Token> {
@@ -219,29 +248,7 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn bool_token(&mut self, start: usize, val: bool) -> Result<Token> {
-        if (val && self.parse_ident("rue")) || (!val && self.parse_ident("alse")) {
-            Ok(Token::Bool(val, Span(start, self.current())))
-        } else {
-            Err(Error::InvalidBool(self.current()))
-        }
-    }
-
-    fn try_parse_ident(&self, expected: &str) -> bool {
-        self.clone().parse_ident(expected)
-    }
-
-    fn parse_ident(&mut self, expected: &str) -> bool {
-        for (_, expect) in expected.char_indices() {
-            match self.next_one() {
-                Some((_, ch)) => {
-                    if ch != expect {
-                        return false;
-                    }
-                }
-                None => return false,
-            }
-        }
-        true
+        Ok(Token::Bool(val, Span(start, self.current())))
     }
 
     fn eat_whitespace(&mut self) -> Option<()> {
@@ -273,6 +280,10 @@ fn is_whitespace_char(ch: char) -> bool {
     return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n';
 }
 
+fn is_delim_char(ch: char) -> bool {
+    return ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}';
+}
+
 fn is_param_char(ch: char) -> bool {
     return ('0' <= ch && ch <= '9')
         || ('a' <= ch && ch <= 'z')
@@ -281,24 +292,126 @@ fn is_param_char(ch: char) -> bool {
         || ch == '_';
 }
 
-fn is_operator_char(ch: char) -> bool {
-    match ch {
-        '+' | '-' | '*' | '/' | '%' | '&' | '!' | '=' | '|' | '>' | '<' | '?' | ':' => true,
-        _ => false,
-    }
-}
+#[cfg(test)]
+mod tests {
+    use super::Tokenizer;
+    use crate::init::init;
+    use crate::token::DelimTokenType;
+    use crate::token::Span;
+    use crate::token::Token;
+    use crate::token::Token::*;
+    use rstest::rstest;
+    use rust_decimal::prelude::*;
 
-#[test]
-fn test() {
-    let input = "{1:2+3*2};";
-    let mut tokenizer = Tokenizer::new(input);
-    loop {
-        match tokenizer.next() {
-            Ok(Token::EOF) => break,
-            Ok(t) => {
-                println!("{}", t)
-            }
-            Err(e) => println!("{}", e),
-        }
+    #[rstest]
+    #[case("true", true, 0, 4)]
+    #[case(" True", true, 1, 5)]
+    #[case(" \nfalse", false, 2, 7)]
+    #[case(" \t False", false, 3, 8)]
+    fn test_bool(
+        #[case] input: &str,
+        #[case] value: bool,
+        #[case] start: usize,
+        #[case] end: usize,
+    ) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, Bool(value, Span(start, end)))
+    }
+
+    #[rstest]
+    #[case(" 1234 ", "1234", 1, 5)]
+    #[case(" 5.678 ", "5.678", 1, 6)]
+    // #[case(" 10e-3 ", "10e-3", 1, 6)]
+    // #[case(" 10e03 ", "10e03", 1, 6)]
+    // #[case(" 2e+3 ", "2e+3", 1, 5)]
+    fn test_number(
+        #[case] input: &str,
+        #[case] value: &str,
+        #[case] start: usize,
+        #[case] end: usize,
+    ) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(
+            ans,
+            Number(
+                Decimal::from_str(value).unwrap_or_default(),
+                Span(start, end)
+            )
+        )
+    }
+
+    #[rstest]
+    #[case(" { ", DelimTokenType::OpenBrace, 1, 2)]
+    #[case(" } ", DelimTokenType::CloseBrace, 1, 2)]
+    #[case("  [", DelimTokenType::OpenBracket, 2, 3)]
+    #[case("\n]", DelimTokenType::CloseBracket, 1, 2)]
+    #[case(" ( ", DelimTokenType::OpenParen, 1, 2)]
+    #[case("  \t)", DelimTokenType::CloseParen, 3, 4)]
+    fn test_delim(
+        #[case] input: &str,
+        #[case] typ: DelimTokenType,
+        #[case] start: usize,
+        #[case] end: usize,
+    ) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, Delim(typ, Span(start, end)))
+    }
+
+    #[rstest]
+    #[case("", EOF)]
+    #[case(" , ", Comma(",".to_string(), Span(1, 2)))]
+    #[case(" ; ", Semicolon(";".to_string(), Span(1, 2)))]
+    #[case(" +=", Operator("+=".to_string(), Span(1,3)))]
+    #[case(" +=+", Operator("+=".to_string(), Span(1,3)))]
+    #[case(" +=9", Operator("+=".to_string(), Span(1,3)))]
+    #[case(" beginWith", Operator("beginWith".to_string(), Span(1, 10)))]
+    #[case(" endWith", Operator("endWith".to_string(), Span(1, 8)))]
+    fn test_other(#[case] input: &str, #[case] output: Token) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, output);
+    }
+
+    #[rstest]
+    #[case(" 'dsfasdfdsa' ", "dsfasdfdsa", 1, 13)]
+    #[case("\"dffd\"", "dffd", 0, 6)]
+    fn test_string(
+        #[case] input: &str,
+        #[case] value: &str,
+        #[case] start: usize,
+        #[case] end: usize,
+    ) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, String(value.to_string(), Span(start, end)));
+    }
+
+    #[rstest]
+    #[case(" d09f_5 ", Reference("d09f_5".to_string(), Span(1, 7)))]
+    #[case(" d09f_5() ", Function("d09f_5".to_string(), Span(1, 7)))]
+    #[case(" d09f_>", Reference("d09f_".to_string(), Span(1, 6)))]
+    fn test_reference_function(#[case] input: &str, #[case] output: Token) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next().unwrap();
+        assert_eq!(ans, output);
+    }
+
+    #[rstest]
+    #[case("\"jajd'")]
+    #[case("0e.3")]
+    fn test_err(#[case] input: &str) {
+        init();
+        let mut tokenizer = Tokenizer::new(input);
+        let ans = tokenizer.next();
+        assert!(ans.is_err())
     }
 }

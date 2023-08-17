@@ -108,11 +108,3 @@ macro_rules! create_context {
         ctx
     }};
 }
-
-#[test]
-fn test() {
-    use std::sync::Arc;
-    let a = create_context!("d" => 3, "c" => Arc::new(|params| {
-            Ok(Value::from(3))
-    }));
-}

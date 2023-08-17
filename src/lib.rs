@@ -22,6 +22,8 @@ mod tokenizer;
 mod value;
 mod context;
 mod descriptor;
+mod init;
+mod store;
 
 /// ## Usage
 ///
@@ -39,6 +41,8 @@ mod descriptor;
 /// assert_eq!(ans, Value::from(21))
 /// ```
 pub fn execute(expr: &str, mut ctx: context::Context) -> define::Result<value::Value> {
+    use crate::init::init;
+    init();
     ast::AST::new(expr)?
         .parse_chain_expression()?
         .exec(&mut ctx)
@@ -53,8 +57,8 @@ fn test_exec() {
     let ctx = create_context!(
         "d" => 2,
         "b" => true,
-        "f" => Arc::new(|params| Ok(Value::from(3)))
+        "f" => Arc::new(|_| Ok(Value::from(3)))
     );
     let ans = execute(input, ctx).unwrap();
-    assert_eq!(ans, Value::from(21))
+    assert_eq!(ans, 21.into())
 }

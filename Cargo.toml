@@ -18,5 +18,8 @@ documentation = "https://docs.rs/expression_engine/latest/expression_engine/"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust_decimal = "1.26.1"
-once_cell = "1.17.1"
+rust_decimal = "1.31.0"
+once_cell = "1.18.0"
+
+[dev-dependencies]
+rstest = "0.18.2"

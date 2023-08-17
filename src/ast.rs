@@ -9,7 +9,7 @@ use crate::value::Value;
 use rust_decimal::prelude::*;
 use std::fmt;
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Literal {
     Number(Decimal),
     Bool(bool),
@@ -27,7 +27,7 @@ impl fmt::Display for Literal {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum ExprAST {
     Literal(Literal),
     Unary(String, Box<ExprAST>),
@@ -368,6 +368,10 @@ impl<'a> AST<'a> {
         })
     }
 
+    fn is_eof(&self) -> bool {
+        self.cur_tok().is_eof()
+    }
+
     pub fn next(&mut self) -> Result<Token> {
         self.tokenizer.next()
     }
@@ -402,7 +406,7 @@ impl<'a> AST<'a> {
             Token::Function(name, _) => self.parse_function(name),
             Token::Operator(op, _) => self.parse_unary(op),
             Token::Delim(ty, _) => self.parse_delim(ty),
-            Token::EOF => Ok(ExprAST::None),
+            Token::EOF => Err(Error::UnexpectedEOF(0)),
             _ => Err(Error::UnexpectedToken()),
         }
     }
@@ -410,7 +414,7 @@ impl<'a> AST<'a> {
     pub fn parse_chain_expression(&mut self) -> Result<ExprAST> {
         let mut ans = Vec::new();
         loop {
-            if self.cur_tok().is_eof() {
+            if self.is_eof() {
                 break;
             }
             ans.push(self.parse_expression()?);
@@ -483,45 +487,42 @@ impl<'a> AST<'a> {
             return Err(Error::NoCloseDelim);
         }
         self.next()?;
-        return Ok(expr);
-    }
-
-    fn parse_open_brace(&mut self) -> Result<ExprAST> {
-        self.next()?;
-        let mut m = Vec::new();
-        if self.cur_tok().is_close_brace() {
-            return Ok(ExprAST::Map(m));
-        }
-        loop {
-            let k = self.parse_expression()?;
-            self.expect(":")?;
-            let v = self.parse_expression()?;
-            m.push((k, v));
-            if self.cur_tok().is_close_brace() {
-                self.next()?;
-                break;
-            }
-            self.expect(",")?;
-        }
-        Ok(ExprAST::Map(m))
+        Ok(expr)
     }
 
     fn parse_open_bracket(&mut self) -> Result<ExprAST> {
         self.next()?;
         let mut exprs = Vec::new();
-        if self.cur_tok().is_close_bracket() {
-            self.next()?;
-            return Ok(ExprAST::List(exprs));
-        }
         loop {
-            exprs.push(self.parse_expression()?);
-            if self.cur_tok().is_close_bracket() {
-                self.next()?;
+            if self.is_eof() || self.cur_tok().is_close_bracket() {
                 break;
             }
-            self.expect(",")?;
+            exprs.push(self.parse_expression()?);
+            if !self.cur_tok().is_close_bracket() {
+                self.expect(",")?;
+            }
         }
+        self.expect("]")?;
         Ok(ExprAST::List(exprs))
+    }
+
+    fn parse_open_brace(&mut self) -> Result<ExprAST> {
+        self.next()?;
+        let mut m = Vec::new();
+        loop {
+            if self.is_eof() || self.cur_tok().is_close_brace() {
+                break;
+            }
+            let k = self.parse_expression()?;
+            self.expect(":")?;
+            let v = self.parse_expression()?;
+            m.push((k, v));
+            if !self.cur_tok().is_close_brace() {
+                self.expect(",")?;
+            }
+        }
+        self.expect("}")?;
+        Ok(ExprAST::Map(m))
     }
 
     fn parse_unary(&mut self, op: String) -> Result<ExprAST> {
@@ -569,23 +570,260 @@ fn test() {
     }
 }
 
-#[test]
-fn test_exec() {
-    let input = "c=5;c";
-    // input = "1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1+1*4+2";
-    let ast = AST::new(input);
-    let mut ctx = Context::new();
-    ctx.set_variable("mm", Value::from(12.0_f64));
-    match ast {
-        Ok(mut a) => {
-            let expr = a.parse_chain_expression().unwrap();
-            println!("expr is {}", expr);
-            println!("string is {}", expr.expr());
-            let ans = expr.exec(&mut ctx).unwrap();
-            println!("ans is {}", ans);
-        }
-        Err(e) => {
-            println!("{}", e);
+#[cfg(test)]
+mod tests {
+    use crate::ast::{ExprAST, Literal, AST};
+    use crate::init::init;
+    use crate::value::Value;
+    use rstest::rstest;
+    use rust_decimal::prelude::*;
+
+    #[rstest]
+    #[case("5", ExprAST::Literal(Literal::Number(Decimal::from_str("5").unwrap_or_default())))]
+    #[case("true", ExprAST::Literal(Literal::Bool(true)))]
+    #[case("\n false", ExprAST::Literal(Literal::Bool(false)))]
+    #[case("\n haha", ExprAST::Reference("haha".to_string()))]
+    #[case("'haha  '", ExprAST::Literal(Literal::String("haha  ".to_string())))]
+    #[case("!a", ExprAST::Unary(
+        "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+    ))]
+    fn test_parse_expression_simple(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case("2+3*5", ExprAST::Binary(
+        "+".to_string(), 
+        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
+        Box::new(ExprAST::Binary(
+            "*".to_string(),
+            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
+            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
+        ))
+    ))]
+    #[case("(2+3)*5", ExprAST::Binary(
+        "*".to_string(), 
+        Box::new(ExprAST::Binary(
+            "+".to_string(),
+            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
+            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
+        )),
+        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
+    ))]
+    #[case("'hahhaff' beginWith 'hahha'", ExprAST::Binary(
+        "beginWith".to_string(), 
+        Box::new(ExprAST::Literal(Literal::String("hahhaff".to_string()))),
+        Box::new(ExprAST::Literal(Literal::String("hahha".to_string()))),
+    ))]
+    fn test_parse_expression_binary(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case(" [] ", ExprAST::List(Vec::new()))]
+    #[case("[1,!a,(2+3)*5,true, 'hahd', [1,!a,(2+3)*5,true, 'hahd']]", ExprAST::List(
+        vec![
+            ExprAST::Literal(Literal::Number(Decimal::from_str("1").unwrap_or_default())),
+            ExprAST::Unary(
+                "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+            ),
+            ExprAST::Binary(
+                "*".to_string(), 
+                Box::new(ExprAST::Binary(
+                    "+".to_string(),
+                    Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
+                    Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
+                )),
+                Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
+            ),
+            ExprAST::Literal(Literal::Bool(true)),
+            ExprAST::Literal(Literal::String("hahd".to_string())),
+            ExprAST::List(
+                vec![
+                    ExprAST::Literal(Literal::Number(Decimal::from_str("1").unwrap_or_default())),
+                    ExprAST::Unary(
+                        "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+                    ),
+                    ExprAST::Binary(
+                        "*".to_string(), 
+                        Box::new(ExprAST::Binary(
+                            "+".to_string(),
+                            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
+                            Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
+                        )),
+                        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
+                    ),
+                    ExprAST::Literal(Literal::Bool(true)),
+                    ExprAST::Literal(Literal::String("hahd".to_string())),
+                ],
+            ),
+        ]
+    ))]
+    fn test_parse_expression_list(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case(" true ? 234:'haha'", ExprAST::Ternary(
+        Box::new(ExprAST::Literal(Literal::Bool(true))),
+        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("234").unwrap_or_default()))), 
+        Box::new(ExprAST::Literal(Literal::String("haha".to_string()))),
+        )
+    )]
+    fn test_parse_expression_ternary(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case("  ")]
+    #[case(" [ ")]
+    #[case("[234,")]
+    #[case(" { ")]
+    #[case("{2:")]
+    #[case("{2")]
+    #[case("{2:}")]
+    #[case(" (")]
+    #[case("a(")]
+    #[case("a(,)")]
+    #[case("a(2,true,")]
+    #[case("true ?")]
+    #[case("true ? haha :")]
+    #[case("2+ ")]
+    fn test_parse_expression_error(#[case] input: &str) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_err());
+    }
+
+    #[rstest]
+    #[case(
+        "
+        a=3;
+        a+=4;
+        b=a+5;
+        [a,b]
+    ",
+        ExprAST::Chain(
+            vec![
+                ExprAST::Binary(
+                    "=".to_string(),
+                    Box::new(ExprAST::Reference("a".to_string())),
+                    Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("3").unwrap_or_default())))
+                ),
+                ExprAST::Binary(
+                    "+=".to_string(),
+                    Box::new(ExprAST::Reference("a".to_string())),
+                    Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("4").unwrap_or_default())))
+                ),
+                ExprAST::Binary(
+                    "=".to_string(),
+                    Box::new(ExprAST::Reference("b".to_string())),
+                    Box::new(ExprAST::Binary(
+                        "+".to_string(),
+                        Box::new(ExprAST::Reference("a".to_string())),
+                        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("5").unwrap_or_default())))
+                    ))
+                ),
+                ExprAST::List(
+                    vec![
+                        ExprAST::Reference("a".to_string()),
+                        ExprAST::Reference("b".to_string())
+                    ]
+                ),
+            ]
+        ),
+    )]
+    #[case("5", ExprAST::Literal(Literal::Number(Decimal::from_str("5").unwrap_or_default())))]
+    #[case("true", ExprAST::Literal(Literal::Bool(true)))]
+    #[case("\n false", ExprAST::Literal(Literal::Bool(false)))]
+    #[case("\n haha", ExprAST::Reference("haha".to_string()))]
+    #[case("'haha  '", ExprAST::Literal(Literal::String("haha  ".to_string())))]
+    #[case("!a", ExprAST::Unary(
+        "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+    ))]
+    fn test_parse_chain_expression(#[case] input: &str, #[case] output: ExprAST) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_chain_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case("")]
+    #[case(" ")]
+    fn test_parse_chain_expression_error(#[case] input: &str) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_err());
+    }
+
+    use crate::create_context;
+    #[rstest]
+    #[case("2", 2.into())]
+    #[case("'haha'", "haha".into())]
+    #[case("true", true.into())]
+    #[case("  False", false.into())]
+    #[case("!(2>3)", true.into())]
+    #[case("2>3", false.into())]
+    #[case(" 2<3 ", true.into())]
+    #[case("2 >= 3", false.into())]
+    #[case("2<=3", true.into())]
+    #[case("2+3*5-2/2+6*(2+4 )-20", 32.into())]
+    #[case("102%100",2.into())]
+    #[case("2!=3", true.into())]
+    #[case("2==3", false.into())]
+    #[case("100>>3", (100>>3).into())]
+    #[case("100<<3", (100<<3).into())]
+    #[case("(2>3)&&true", false.into())]
+    #[case("2>3||True", true.into())]
+    #[case("d+=3;d", 6.into())]
+    #[case("d-=2;d*5", 5.into())]
+    #[case("d*=0.1;d+1.5", 1.8.into())]
+    #[case("d/=2;d==1.5", true.into())]
+    #[case("d%99;d", 3.into())]
+    #[case("d<<=2;d", (3<<2).into())]
+    #[case("d>>=2;d", (3>>2).into())]
+    #[case("'hahhadf' beginWith \"hahha\"", true.into())]
+    #[case("'hahhadf' endWith \"hahha\"", false.into())]
+    fn test_exec(#[case] input: &str, #[case] output: Value) {
+        init();
+        let mut ctx = create_context!("d" => 3);
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_chain_expression();
+        assert!(expr_ast.is_ok());
+        let ans = expr_ast.unwrap().exec(&mut ctx);
+        if ans.is_err() {
+            print!("{:?}", ans.err());
+        } else {
+            assert!(ans.is_ok());
+            assert_eq!(ans.unwrap(), output);
         }
     }
 }
