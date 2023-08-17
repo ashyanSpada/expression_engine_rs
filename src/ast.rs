@@ -609,7 +609,7 @@ mod tests {
     #[case("(2+3)*5", ExprAST::Binary(
         "*".to_string(), 
         Box::new(ExprAST::Binary(
-            "*".to_string(),
+            "+".to_string(),
             Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
             Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
         )),
@@ -618,7 +618,7 @@ mod tests {
     #[case("'hahhaff' beginWith 'hahha'", ExprAST::Binary(
         "beginWith".to_string(), 
         Box::new(ExprAST::Literal(Literal::String("hahhaff".to_string()))),
-        Box::new(ExprAST::Literal(Literal::String("hahhaff".to_string()))),
+        Box::new(ExprAST::Literal(Literal::String("hahha".to_string()))),
     ))]
     fn test_parse_expression_binary(#[case] input: &str, #[case] output: ExprAST) {
         init();
@@ -810,6 +810,7 @@ mod tests {
     #[case("d<<=2;d", (3<<2).into())]
     #[case("d>>=2;d", (3>>2).into())]
     #[case("'hahhadf' beginWith \"hahha\"", true.into())]
+    #[case("'hahhadf' endWith \"hahha\"", false.into())]
     fn test_exec(#[case] input: &str, #[case] output: Value) {
         init();
         let mut ctx = create_context!("d" => 3);

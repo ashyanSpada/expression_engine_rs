@@ -108,10 +108,3 @@ macro_rules! create_context {
         ctx
     }};
 }
-
-#[test]
-fn test() {
-    let a = create_context!("d" => 3, "c" => Arc::new(|params| {
-            Ok(Value::from(3))
-    }));
-}

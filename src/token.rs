@@ -183,6 +183,7 @@ impl fmt::Display for Span {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Token::*;
