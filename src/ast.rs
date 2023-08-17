@@ -574,6 +574,7 @@ fn test() {
 mod tests {
     use crate::ast::{ExprAST, Literal, AST};
     use crate::init::init;
+    use crate::value::Value;
     use rstest::rstest;
     use rust_decimal::prelude::*;
 
@@ -613,6 +614,11 @@ mod tests {
             Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
         )),
         Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
+    ))]
+    #[case("'hahhaff' beginWith 'hahha'", ExprAST::Binary(
+        "beginWith".to_string(), 
+        Box::new(ExprAST::Literal(Literal::String("hahhaff".to_string()))),
+        Box::new(ExprAST::Literal(Literal::String("hahhaff".to_string()))),
     ))]
     fn test_parse_expression_binary(#[case] input: &str, #[case] output: ExprAST) {
         init();
@@ -749,6 +755,14 @@ mod tests {
             ]
         ),
     )]
+    #[case("5", ExprAST::Literal(Literal::Number(Decimal::from_str("5").unwrap_or_default())))]
+    #[case("true", ExprAST::Literal(Literal::Bool(true)))]
+    #[case("\n false", ExprAST::Literal(Literal::Bool(false)))]
+    #[case("\n haha", ExprAST::Reference("haha".to_string()))]
+    #[case("'haha  '", ExprAST::Literal(Literal::String("haha  ".to_string())))]
+    #[case("!a", ExprAST::Unary(
+        "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+    ))]
     fn test_parse_chain_expression(#[case] input: &str, #[case] output: ExprAST) {
         init();
         let ast = AST::new(input);
@@ -756,5 +770,59 @@ mod tests {
         let expr_ast = ast.unwrap().parse_chain_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case("")]
+    #[case(" ")]
+    fn test_parse_chain_expression_error(#[case] input: &str) {
+        init();
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_expression();
+        assert!(expr_ast.is_err());
+    }
+
+    use crate::create_context;
+    #[rstest]
+    #[case("2", 2.into())]
+    #[case("'haha'", "haha".into())]
+    #[case("true", true.into())]
+    #[case("  False", false.into())]
+    #[case("!(2>3)", true.into())]
+    #[case("2>3", false.into())]
+    #[case(" 2<3 ", true.into())]
+    #[case("2 >= 3", false.into())]
+    #[case("2<=3", true.into())]
+    #[case("2+3*5-2/2+6*(2+4 )-20", 32.into())]
+    #[case("102%100",2.into())]
+    #[case("2!=3", true.into())]
+    #[case("2==3", false.into())]
+    #[case("100>>3", (100>>3).into())]
+    #[case("100<<3", (100<<3).into())]
+    #[case("(2>3)&&true", false.into())]
+    #[case("2>3||True", true.into())]
+    #[case("d+=3;d", 6.into())]
+    #[case("d-=2;d*5", 5.into())]
+    #[case("d*=0.1;d+1.5", 1.8.into())]
+    #[case("d/=2;d==1.5", true.into())]
+    #[case("d%99;d", 3.into())]
+    #[case("d<<=2;d", (3<<2).into())]
+    #[case("d>>=2;d", (3>>2).into())]
+    #[case("'hahhadf' beginWith \"hahha\"", true.into())]
+    fn test_exec(#[case] input: &str, #[case] output: Value) {
+        init();
+        let mut ctx = create_context!("d" => 3);
+        let ast = AST::new(input);
+        assert!(ast.is_ok());
+        let expr_ast = ast.unwrap().parse_chain_expression();
+        assert!(expr_ast.is_ok());
+        let ans = expr_ast.unwrap().exec(&mut ctx);
+        if ans.is_err() {
+            print!("{:?}", ans.err());
+        } else {
+            assert!(ans.is_ok());
+            assert_eq!(ans.unwrap(), output);
+        }
     }
 }

@@ -120,7 +120,7 @@ impl<'a> Tokenizer<'a> {
             }
         }
         return Ok(Token::Operator(
-            self.input[start..start + 1].into(),
+            self.input[start..self.current()].into(),
             Span(start, self.current()),
         ));
     }
@@ -370,6 +370,8 @@ mod tests {
     #[case(" +=", Operator("+=".to_string(), Span(1,3)))]
     #[case(" +=+", Operator("+=".to_string(), Span(1,3)))]
     #[case(" +=9", Operator("+=".to_string(), Span(1,3)))]
+    #[case(" beginWith", Operator("beginWith".to_string(), Span(1, 10)))]
+    #[case(" endWith", Operator("endWith".to_string(), Span(1, 8)))]
     fn test_other(#[case] input: &str, #[case] output: Token) {
         init();
         let mut tokenizer = Tokenizer::new(input);
