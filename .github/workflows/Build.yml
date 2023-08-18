@@ -1,0 +1,103 @@
+name: Build
+on:
+  push:
+    branches:
+      - "*"
+  pull_request:
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        version:
+          - stable
+          - beta
+          - nightly
+        target:
+          - i686-unknown-linux-gnu
+          - i686-unknown-linux-musl
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.version }}
+          components: rustfmt
+      - name: cache
+        uses: Swatinem/rust-cache@v2
+      - name: test
+        run: cargo test
+      - name: ignored test
+        run: cargo test -- --ignored || true
+        if: matrix.version == 'nightly'
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: linux ${{ matrix.version }}
+          retention-days: 3
+          path: |
+              tests/data/
+              !tests/data/**/*.rs
+      - name: check formatting
+        run: cargo fmt -- --check
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        version:
+          - stable
+          - nightly
+        target:
+          - x86_64-pc-windows-gnu
+          - x86_64-pc-windows-msvc
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.version }}
+      - name: cache
+        uses: Swatinem/rust-cache@v2
+      - name: test
+        run: cargo test
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: windows ${{ matrix.version }}
+          retention-days: 3
+          path: |
+              tests/data/
+              !tests/data/**/*.rs
+  mac:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        version:
+          - stable
+          - nightly
+        target:
+          - x86_64-apple-darwin	
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.version }}
+      - name: cache
+        uses: Swatinem/rust-cache@v2
+      - name: test
+        run: cargo test
+      - uses: actions/upload-artifact@v3
+        #if: failure()
+        with:
+          name: mac ${{ matrix.version }}
+          retention-days: 3
+          path: |
+              tests/data/
+              !tests/data/**/*.rs
