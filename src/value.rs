@@ -13,6 +13,7 @@ pub enum Value {
     None,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

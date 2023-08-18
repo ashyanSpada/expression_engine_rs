@@ -1,3 +1,4 @@
+use crate::function::InnerFunctionManager;
 use crate::keyword::KeywordManager;
 use crate::operator::{BinaryOpFuncManager, UnaryOpFuncManager};
 use once_cell::sync::OnceCell;
@@ -8,6 +9,7 @@ pub fn init() {
         KeywordManager::new().init();
         UnaryOpFuncManager::new().init();
         BinaryOpFuncManager::new().init();
+        InnerFunctionManager::new().init();
     });
 }
 
