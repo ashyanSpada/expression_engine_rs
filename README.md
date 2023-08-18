@@ -1,5 +1,7 @@
-[![codecov](https://codecov.io/gh/ashyanSpada/expression_engine_rs/graph/badge.svg?token=H5GNNRVUZQ)](https://codecov.io/gh/ashyanSpada/expression_engine_rs)
 # expression_engine
+[![Latest Version](https://img.shields.io/crates/v/expression_engine.svg)](https://crates.io/crates/expression_engine)
+[![License:Apache-2.0](https://img.shields.io/badge/License-Apache2.0-yellow.svg)](https://opensource.org/licenses/Apache-2.0)
+[![codecov](https://codecov.io/gh/ashyanSpada/expression_engine_rs/graph/badge.svg?token=H5GNNRVUZQ)](https://codecov.io/gh/ashyanSpada/expression_engine_rs)
 
 ## Introduction
 
