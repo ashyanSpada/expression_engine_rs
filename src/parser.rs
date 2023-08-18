@@ -262,9 +262,7 @@ impl ExprAST {
     }
 
     fn unary_expr(&self, op: &String, rhs: &Box<ExprAST>) -> String {
-        let mut ans = op.clone();
-        ans.push_str(&rhs.expr());
-        ans
+        op.clone() + " " + &rhs.expr()
     }
 
     fn binary_expr(&self, op: &String, lhs: &Box<ExprAST>, rhs: &Box<ExprAST>) -> String {
@@ -661,6 +659,9 @@ mod tests {
         let parser = Parser::new(input);
         assert!(parser.is_ok());
         let expr_ast = parser.unwrap().parse_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
@@ -674,6 +675,9 @@ mod tests {
     )]
     fn test_parse_expression_ternary(#[case] input: &str, #[case] output: ExprAST) {
         init();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         let parser = Parser::new(input);
         assert!(parser.is_ok());
         let expr_ast = parser.unwrap().parse_expression();
@@ -771,6 +775,8 @@ mod tests {
     }
 
     use crate::create_context;
+    use crate::function::InnerFunctionManager;
+    use std::sync::Arc;
     #[rstest]
     #[case("2", 2.into())]
     #[case("'haha'", "haha".into())]
@@ -810,19 +816,72 @@ mod tests {
     ))]
     #[case("2<=3?'haha':false", "haha".into())]
     #[case("2>=3?'haha':false", false.into())]
+    #[case("min(1,2,2+3*5,-10)", (-10).into())]
+    #[case("max(1,2,2+3*5,-10)", 17.into())]
+    #[case("mul(1,2,2+3*5,-10)", (-340).into())]
+    #[case("sum(1,2,2+3*5,-10)", 10.into())]
+    #[case("f(3)", 3.into())]
+    #[case("d()", 4.into())]
+    #[case("true in [2, true, 'haha']", true.into())]
+    #[case("-5*10", (-50).into())]
+    #[case("AND[1>2,true]", false.into())]
+    #[case("OR[1>2,true]", true.into())]
+    #[case("[2>3,1+5]", Value::List(
+        vec![false.into(),6.into()]
+    ))]
+    #[case("{'haha':2, 1+2:2>3}", Value::Map(
+        vec![("haha".into(),2.into()),(3.into(),false.into())]
+    ))]
+    #[case("2<=3?'haha':false", "haha".into())]
+    #[case("2>=3?'haha':false", false.into())]
     fn test_exec(#[case] input: &str, #[case] output: Value) {
         init();
-        let mut ctx = create_context!("d" => 3);
+        let mut ctx = create_context!(
+            "d" => 3,
+            "f" => Arc::new(|_| Ok(Value::from(3)))
+        );
+        InnerFunctionManager::new().register("d", Arc::new(|_| Ok(4.into())));
         let parser = Parser::new(input);
         assert!(parser.is_ok());
         let expr_ast = parser.unwrap().parse_chain_expression();
         assert!(expr_ast.is_ok());
         let ans = expr_ast.unwrap().exec(&mut ctx);
-        if ans.is_err() {
-            print!("{:?}", ans.err());
-        } else {
-            assert!(ans.is_ok());
-            assert_eq!(ans.unwrap(), output);
-        }
+        assert!(ans.is_ok());
+        assert_eq!(ans.unwrap(), output);
+    }
+
+    #[rstest]
+    #[case("5", "5")]
+    #[case(" true ", "true")]
+    #[case(" True ", "true")]
+    #[case(" false ", "false")]
+    #[case(" False ", "false")]
+    #[case("\n haha", "haha")]
+    #[case("\t 'haha  '", "\"haha  \"")]
+    #[case("!a", "! a")]
+    #[case("not a", "not a")]
+    #[case("2+3*5", "2 + 3 * 5")]
+    #[case("(2+3)*5", "(2 + 3) * 5")]
+    #[case("[]", "[]")]
+    #[case(
+        "[1,!a,(2+3)*5,true, 'hahd',[1,!a,(2+3)*5,true, 'hahd']]",
+        "[1,! a,(2 + 3) * 5,true,\"hahd\",[1,! a,(2 + 3) * 5,true,\"hahd\"]]"
+    )]
+    #[case(" a()", "a()")]
+    #[case(
+        "test(1,!a,(2+3)*5,true, 'hahd',[1,!a,(2+3)*5,true, 'hahd'])",
+        "test(1,! a,(2 + 3) * 5,true,\"hahd\",[1,! a,(2 + 3) * 5,true,\"hahd\"])"
+    )]
+    #[case("{}", "{}")]
+    #[case("{2+3:5,'haha':d}", "{2 + 3:5,\"haha\":d}")]
+    #[case("true?4: 2", "true ? 4 : 2")]
+    #[case("2+3 >5?4: 2", "2 + 3 > 5 ? 4 : 2")]
+    fn test_expression_expr(#[case] input: &str, #[case] output: &str) {
+        init();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        assert_eq!(expr_ast.unwrap().expr(), output);
     }
 }

@@ -15,15 +15,13 @@ pub struct InnerFunctionManager {
 impl InnerFunctionManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, Arc<InnerFunction>>>> = OnceCell::new();
-        let store = STORE.get_or_init(|| Mutex::new(Self::internal_register(HashMap::new())));
+        let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
         InnerFunctionManager { store: store }
     }
 
-    fn internal_register(
-        mut m: HashMap<String, Arc<InnerFunction>>,
-    ) -> HashMap<String, Arc<InnerFunction>> {
-        m.insert(
-            "min".to_string(),
+    pub fn init(&mut self) {
+        self.register(
+            "min",
             Arc::new(|params| {
                 let mut min = None;
                 for param in params.into_iter() {
@@ -36,8 +34,8 @@ impl InnerFunctionManager {
             }),
         );
 
-        m.insert(
-            "max".to_string(),
+        self.register(
+            "max",
             Arc::new(|params| {
                 let mut max = None;
                 for param in params.into_iter() {
@@ -50,8 +48,8 @@ impl InnerFunctionManager {
             }),
         );
 
-        m.insert(
-            "sum".to_string(),
+        self.register(
+            "sum",
             Arc::new(|params| {
                 let mut ans = Decimal::ZERO;
                 for param in params.into_iter() {
@@ -61,8 +59,8 @@ impl InnerFunctionManager {
             }),
         );
 
-        m.insert(
-            "mul".to_string(),
+        self.register(
+            "mul",
             Arc::new(|params| {
                 let mut ans = Decimal::ONE;
                 for param in params.into_iter() {
@@ -71,7 +69,6 @@ impl InnerFunctionManager {
                 Ok(Value::Number(ans))
             }),
         );
-        m
     }
 
     pub fn register(&mut self, name: &str, f: Arc<InnerFunction>) {
