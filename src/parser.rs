@@ -659,6 +659,9 @@ mod tests {
         let parser = Parser::new(input);
         assert!(parser.is_ok());
         let expr_ast = parser.unwrap().parse_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
@@ -672,6 +675,9 @@ mod tests {
     )]
     fn test_parse_expression_ternary(#[case] input: &str, #[case] output: ExprAST) {
         init();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         let parser = Parser::new(input);
         assert!(parser.is_ok());
         let expr_ast = parser.unwrap().parse_expression();
@@ -816,6 +822,18 @@ mod tests {
     #[case("sum(1,2,2+3*5,-10)", 10.into())]
     #[case("f(3)", 3.into())]
     #[case("d()", 4.into())]
+    #[case("true in [2, true, 'haha']", true.into())]
+    #[case("-5*10", (-50).into())]
+    #[case("AND[1>2,true]", false.into())]
+    #[case("OR[1>2,true]", true.into())]
+    #[case("[2>3,1+5]", Value::List(
+        vec![false.into(),6.into()]
+    ))]
+    #[case("{'haha':2, 1+2:2>3}", Value::Map(
+        vec![("haha".into(),2.into()),(3.into(),false.into())]
+    ))]
+    #[case("2<=3?'haha':false", "haha".into())]
+    #[case("2>=3?'haha':false", false.into())]
     fn test_exec(#[case] input: &str, #[case] output: Value) {
         init();
         let mut ctx = create_context!(
