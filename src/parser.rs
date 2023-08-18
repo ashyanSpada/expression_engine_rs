@@ -16,6 +16,7 @@ pub enum Literal {
     String(String),
 }
 
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Literal::*;
@@ -41,6 +42,7 @@ pub enum ExprAST {
     None,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for ExprAST {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -347,11 +349,11 @@ impl ExprAST {
     }
 }
 
-pub struct AST<'a> {
+pub struct Parser<'a> {
     tokenizer: Tokenizer<'a>,
 }
 
-impl<'a> AST<'a> {
+impl<'a> Parser<'a> {
     fn cur_tok(&self) -> Token {
         self.tokenizer.cur_token.clone()
     }
@@ -555,25 +557,10 @@ impl<'a> AST<'a> {
     }
 }
 
-#[test]
-fn test() {
-    let input = "true in [1,2,3,true]";
-    let ast = AST::new(input);
-    match ast {
-        Ok(mut a) => {
-            let expr = a.parse_expression().unwrap();
-            println!("{}", expr)
-        }
-        Err(e) => {
-            println!("{}", e);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::ast::{ExprAST, Literal, AST};
     use crate::init::init;
+    use crate::parser::{ExprAST, Literal, Parser};
     use crate::value::Value;
     use rstest::rstest;
     use rust_decimal::prelude::*;
@@ -589,9 +576,9 @@ mod tests {
     ))]
     fn test_parse_expression_simple(#[case] input: &str, #[case] output: ExprAST) {
         init();
-        let ast = AST::new(input);
-        assert!(ast.is_ok());
-        let expr_ast = ast.unwrap().parse_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
@@ -622,9 +609,9 @@ mod tests {
     ))]
     fn test_parse_expression_binary(#[case] input: &str, #[case] output: ExprAST) {
         init();
-        let ast = AST::new(input);
-        assert!(ast.is_ok());
-        let expr_ast = ast.unwrap().parse_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
@@ -671,9 +658,9 @@ mod tests {
     ))]
     fn test_parse_expression_list(#[case] input: &str, #[case] output: ExprAST) {
         init();
-        let ast = AST::new(input);
-        assert!(ast.is_ok());
-        let expr_ast = ast.unwrap().parse_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
@@ -687,9 +674,9 @@ mod tests {
     )]
     fn test_parse_expression_ternary(#[case] input: &str, #[case] output: ExprAST) {
         init();
-        let ast = AST::new(input);
-        assert!(ast.is_ok());
-        let expr_ast = ast.unwrap().parse_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
@@ -711,9 +698,9 @@ mod tests {
     #[case("2+ ")]
     fn test_parse_expression_error(#[case] input: &str) {
         init();
-        let ast = AST::new(input);
-        assert!(ast.is_ok());
-        let expr_ast = ast.unwrap().parse_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         assert!(expr_ast.is_err());
     }
 
@@ -765,9 +752,9 @@ mod tests {
     ))]
     fn test_parse_chain_expression(#[case] input: &str, #[case] output: ExprAST) {
         init();
-        let ast = AST::new(input);
-        assert!(ast.is_ok());
-        let expr_ast = ast.unwrap().parse_chain_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_chain_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
@@ -777,9 +764,9 @@ mod tests {
     #[case(" ")]
     fn test_parse_chain_expression_error(#[case] input: &str) {
         init();
-        let ast = AST::new(input);
-        assert!(ast.is_ok());
-        let expr_ast = ast.unwrap().parse_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
         assert!(expr_ast.is_err());
     }
 
@@ -811,12 +798,24 @@ mod tests {
     #[case("d>>=2;d", (3>>2).into())]
     #[case("'hahhadf' beginWith \"hahha\"", true.into())]
     #[case("'hahhadf' endWith \"hahha\"", false.into())]
+    #[case("true in [2, true, 'haha']", true.into())]
+    #[case("-5*10", (-50).into())]
+    #[case("AND[1>2,true]", false.into())]
+    #[case("OR[1>2,true]", true.into())]
+    #[case("[2>3,1+5]", Value::List(
+        vec![false.into(),6.into()]
+    ))]
+    #[case("{'haha':2, 1+2:2>3}", Value::Map(
+        vec![("haha".into(),2.into()),(3.into(),false.into())]
+    ))]
+    #[case("2<=3?'haha':false", "haha".into())]
+    #[case("2>=3?'haha':false", false.into())]
     fn test_exec(#[case] input: &str, #[case] output: Value) {
         init();
         let mut ctx = create_context!("d" => 3);
-        let ast = AST::new(input);
-        assert!(ast.is_ok());
-        let expr_ast = ast.unwrap().parse_chain_expression();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_chain_expression();
         assert!(expr_ast.is_ok());
         let ans = expr_ast.unwrap().exec(&mut ctx);
         if ans.is_err() {

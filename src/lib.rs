@@ -9,9 +9,9 @@
 //! + Pre-defined Operators Support (Common boolean, numeric and string operators)
 //! + Support function and operators registration
 //! + Support operator redirection
-mod ast;
 mod define;
 mod error;
+mod parser;
 #[macro_use]
 mod function;
 mod keyword;
@@ -23,7 +23,6 @@ mod value;
 mod context;
 mod descriptor;
 mod init;
-mod store;
 
 /// ## Usage
 ///
@@ -43,7 +42,7 @@ mod store;
 pub fn execute(expr: &str, mut ctx: context::Context) -> define::Result<value::Value> {
     use crate::init::init;
     init();
-    ast::AST::new(expr)?
+    parser::Parser::new(expr)?
         .parse_chain_expression()?
         .exec(&mut ctx)
 }

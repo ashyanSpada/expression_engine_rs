@@ -112,6 +112,13 @@ impl Value {
             _ => Err(Error::InvalidFloat),
         }
     }
+
+    pub fn list(self) -> Result<Vec<Value>> {
+        match self {
+            Self::List(list) => Ok(list),
+            _ => Err(Error::ShouldBeList()),
+        }
+    }
 }
 
 macro_rules! impl_value_from_for_number {
