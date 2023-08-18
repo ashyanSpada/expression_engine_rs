@@ -16,6 +16,7 @@ pub enum Literal {
     String(String),
 }
 
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for Literal {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Literal::*;
@@ -41,6 +42,7 @@ pub enum ExprAST {
     None,
 }
 
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for ExprAST {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -796,6 +798,18 @@ mod tests {
     #[case("d>>=2;d", (3>>2).into())]
     #[case("'hahhadf' beginWith \"hahha\"", true.into())]
     #[case("'hahhadf' endWith \"hahha\"", false.into())]
+    #[case("true in [2, true, 'haha']", true.into())]
+    #[case("-5*10", (-50).into())]
+    #[case("AND[1>2,true]", false.into())]
+    #[case("OR[1>2,true]", true.into())]
+    #[case("[2>3,1+5]", Value::List(
+        vec![false.into(),6.into()]
+    ))]
+    #[case("{'haha':2, 1+2:2>3}", Value::Map(
+        vec![("haha".into(),2.into()),(3.into(),false.into())]
+    ))]
+    #[case("2<=3?'haha':false", "haha".into())]
+    #[case("2>=3?'haha':false", false.into())]
     fn test_exec(#[case] input: &str, #[case] output: Value) {
         init();
         let mut ctx = create_context!("d" => 3);

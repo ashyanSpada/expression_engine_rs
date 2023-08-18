@@ -189,6 +189,21 @@ impl BinaryOpFuncManager {
                 Ok(Value::from(a.ends_with(&b)))
             }),
         );
+
+        self.register(
+            "in",
+            200,
+            BinOpType::CALC,
+            Arc::new(|left, right| {
+                let list = right.list()?;
+                for item in list {
+                    if item == left {
+                        return Ok(true.into());
+                    }
+                }
+                Ok(false.into())
+            }),
+        )
     }
 
     pub fn register(
@@ -287,6 +302,32 @@ impl UnaryOpFuncManager {
                     _ => return Err(Error::ShouldBeBool()),
                 };
                 Ok(Value::Bool(a))
+            }),
+        );
+
+        self.register(
+            "AND",
+            Arc::new(|value| {
+                let list = value.list()?;
+                for value in list {
+                    if !value.bool()? {
+                        return Ok(false.into());
+                    }
+                }
+                Ok(true.into())
+            }),
+        );
+
+        self.register(
+            "OR",
+            Arc::new(|value| {
+                let list = value.list()?;
+                for value in list {
+                    if value.bool()? {
+                        return Ok(true.into());
+                    }
+                }
+                Ok(false.into())
             }),
         );
     }

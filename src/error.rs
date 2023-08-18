@@ -15,6 +15,8 @@ pub enum Error {
     InnerFunctionNotRegistered(String),
     ShouldBeNumber(),
     ShouldBeBool(),
+    ShouldBeList(),
+    ShouldBeMap(),
     ParamInvalid(),
     ShouldBeString(),
     InvalidTernaryExprNeedColon(),
@@ -49,6 +51,8 @@ impl fmt::Display for Error {
             }
             ShouldBeNumber() => write!(f, "should be number"),
             ShouldBeBool() => write!(f, "should be bool"),
+            ShouldBeList() => write!(f, "should be list"),
+            ShouldBeMap() => write!(f, "should be map"),
             InvalidTernaryExprNeedColon() => write!(f, "invalid ternary expr needs colon"),
             ExpectedOpNotExist(op) => write!(f, "expected op:{} not exist", op.clone()),
             ParamInvalid() => write!(f, "param invalid"),
