@@ -14,8 +14,6 @@ jobs:
       matrix:
         version:
           - stable
-          - beta
-          - nightly
         target:
           - i686-unknown-linux-gnu
           - i686-unknown-linux-musl
@@ -52,7 +50,6 @@ jobs:
       matrix:
         version:
           - stable
-          - nightly
         target:
           - x86_64-pc-windows-gnu
           - x86_64-pc-windows-msvc
@@ -80,7 +77,6 @@ jobs:
       matrix:
         version:
           - stable
-          - nightly
         target:
           - x86_64-apple-darwin	
       fail-fast: false
