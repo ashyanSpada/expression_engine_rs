@@ -160,6 +160,7 @@ impl Token {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub fn string(&self) -> String {
         use Token::*;
         match self {
@@ -177,6 +178,7 @@ impl Token {
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 impl fmt::Display for Span {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "[{}..={})", self.0, self.1)
@@ -199,5 +201,22 @@ impl fmt::Display for Token {
             Delim(ty, span) => write!(f, "Delim Token: {}, {}", ty.string(), span),
             EOF => write!(f, "EOF"),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DelimTokenType;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case("(", DelimTokenType::OpenParen)]
+    #[case(")", DelimTokenType::CloseParen)]
+    #[case("[", DelimTokenType::OpenBracket)]
+    #[case("]", DelimTokenType::CloseBracket)]
+    #[case("{", DelimTokenType::OpenBrace)]
+    #[case("}", DelimTokenType::CloseBrace)]
+    fn test_delim_token_type_from_tr(#[case] input: &str, #[case] output: DelimTokenType) {
+        assert_eq!(DelimTokenType::from(input), output)
     }
 }

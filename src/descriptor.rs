@@ -248,3 +248,33 @@ fn default_map_descriptor(m: Vec<(String, String)>) -> String {
 fn default_chain_descriptor(params: Vec<String>) -> String {
     params.join(";")
 }
+
+#[cfg(test)]
+mod tests {
+    use super::default_binary_descriptor;
+    use super::default_chain_descriptor;
+    use super::default_function_descriptor;
+    use super::default_list_descriptor;
+    use super::default_map_descriptor;
+    use super::default_reference_descriptor;
+    use super::default_ternary_descriptor;
+    use super::default_unary_descriptor;
+    use super::DescriptorManager;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_register() {
+        DescriptorManager::new()
+            .set_binary_descriptor("haha".to_string(), Arc::new(default_binary_descriptor));
+        DescriptorManager::new().set_chain_descriptor(Arc::new(default_chain_descriptor));
+        DescriptorManager::new()
+            .set_function_descriptor("haha".to_string(), Arc::new(default_function_descriptor));
+        DescriptorManager::new().set_list_descriptor(Arc::new(default_list_descriptor));
+        DescriptorManager::new().set_map_descriptor(Arc::new(default_map_descriptor));
+        DescriptorManager::new()
+            .set_reference_descriptor("haha".to_string(), Arc::new(default_reference_descriptor));
+        DescriptorManager::new().set_ternary_descriptor(Arc::new(default_ternary_descriptor));
+        DescriptorManager::new()
+            .set_unary_descriptor("haha".to_string(), Arc::new(default_unary_descriptor));
+    }
+}
