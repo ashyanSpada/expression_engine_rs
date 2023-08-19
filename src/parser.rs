@@ -870,17 +870,28 @@ mod tests {
     #[case("f(3)", 3.into())]
     #[case("d()", 4.into())]
     #[case("true in [2, true, 'haha']", true.into())]
+    #[case("'hahf' in [2, true, 'haha']", false.into())]
     #[case("-5*10", (-50).into())]
     #[case("AND[1>2,true]", false.into())]
+    #[case("AND[1<2, true]", true.into())]
     #[case("OR[1>2,true]", true.into())]
+    #[case("OR[1>2, 2+2<2]", false.into())]
     #[case("[2>3,1+5]", Value::List(
         vec![false.into(),6.into()]
     ))]
+    #[case("[2>3,1+5, true]", 
+        vec![false.into(),6.into(), true.into()].into()
+    )]
     #[case("{'haha':2, 1+2:2>3}", Value::Map(
         vec![("haha".into(),2.into()),(3.into(),false.into())]
     ))]
     #[case("2<=3?'haha':false", "haha".into())]
     #[case("2>=3?'haha':false", false.into())]
+    #[case("a=3;a%=2;a",(3%2).into())]
+    #[case("a=3;a&=2;a",(3&2).into())]
+    #[case("a=3;a^=2;a",(3^2).into())]
+    #[case("a=3;a|=2;a",(3|2).into())]
+    #[case("+5-2*4",(-3).into())]
     fn test_exec(#[case] input: &str, #[case] output: Value) {
         init();
         let mut ctx = create_context!(
