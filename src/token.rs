@@ -216,7 +216,20 @@ mod tests {
     #[case("]", DelimTokenType::CloseBracket)]
     #[case("{", DelimTokenType::OpenBrace)]
     #[case("}", DelimTokenType::CloseBrace)]
-    fn test_delim_token_type_from_tr(#[case] input: &str, #[case] output: DelimTokenType) {
+    #[case("f", DelimTokenType::Unknown)]
+    fn test_delim_token_type_from_str(#[case] input: &str, #[case] output: DelimTokenType) {
+        assert_eq!(DelimTokenType::from(input), output)
+    }
+
+    #[rstest]
+    #[case('(', DelimTokenType::OpenParen)]
+    #[case(')', DelimTokenType::CloseParen)]
+    #[case('[', DelimTokenType::OpenBracket)]
+    #[case(']', DelimTokenType::CloseBracket)]
+    #[case('{', DelimTokenType::OpenBrace)]
+    #[case('}', DelimTokenType::CloseBrace)]
+    #[case('b', DelimTokenType::Unknown)]
+    fn test_delim_token_type_from_char(#[case] input: char, #[case] output: DelimTokenType) {
         assert_eq!(DelimTokenType::from(input), output)
     }
 }
