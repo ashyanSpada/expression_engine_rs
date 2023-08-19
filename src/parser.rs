@@ -1,5 +1,6 @@
 use crate::context::Context;
 use crate::define::*;
+use crate::descriptor::DescriptorManager;
 use crate::error::Error;
 use crate::function::InnerFunctionManager;
 use crate::operator::{BinOpType, BinaryOpFuncManager, UnaryOpFuncManager};
@@ -215,6 +216,22 @@ impl ExprAST {
         Ok(Value::Map(ans))
     }
 
+    fn get_precidence(&self) -> (bool, i32) {
+        match self {
+            ExprAST::Binary(op, _, _) => (true, BinaryOpFuncManager::new().get_precidence(op)),
+            _ => (false, 0),
+        }
+    }
+
+    fn get_reference_name(&self) -> Result<String> {
+        match &self {
+            ExprAST::Reference(name) => Ok(name.clone()),
+            _ => Err(Error::NotReferenceExpr),
+        }
+    }
+}
+
+impl ExprAST {
     pub fn expr(&self) -> String {
         match self {
             Self::Literal(val) => self.literal_expr(val.clone()),
@@ -331,18 +348,48 @@ impl ExprAST {
         }
         s
     }
+}
 
-    fn get_precidence(&self) -> (bool, i32) {
+impl ExprAST {
+    pub fn describe(&self) -> String {
         match self {
-            ExprAST::Binary(op, _, _) => (true, BinaryOpFuncManager::new().get_precidence(op)),
-            _ => (false, 0),
-        }
-    }
-
-    fn get_reference_name(&self) -> Result<String> {
-        match &self {
-            ExprAST::Reference(name) => Ok(name.clone()),
-            _ => Err(Error::NotReferenceExpr),
+            Self::Literal(value) => self.expr(),
+            Self::Unary(op, rhs) => DescriptorManager::new().get_unary_descriptor(op.clone())(
+                op.clone(),
+                rhs.describe(),
+            ),
+            Self::Binary(op, lhs, rhs) => DescriptorManager::new()
+                .get_binary_descriptor(op.clone())(
+                op.clone(), lhs.describe(), rhs.describe()
+            ),
+            Self::List(values) => DescriptorManager::new().get_list_descriptor()(
+                values.into_iter().map(|v| v.describe()).collect(),
+            ),
+            Self::Map(values) => DescriptorManager::new().get_map_descriptor()(
+                values
+                    .into_iter()
+                    .map(|value| (value.0.describe(), value.1.describe()))
+                    .collect(),
+            ),
+            Self::Function(name, values) => DescriptorManager::new()
+                .get_function_descriptor(name.clone())(
+                name.clone(),
+                values.into_iter().map(|v| v.describe()).collect(),
+            ),
+            Self::Reference(name) => {
+                DescriptorManager::new().get_reference_descriptor(name.clone())(name.clone())
+            }
+            Self::Chain(values) => DescriptorManager::new().get_chain_descriptor()(
+                values.into_iter().map(|v| v.describe()).collect(),
+            ),
+            Self::Ternary(condition, lhs, rhs) => {
+                DescriptorManager::new().get_ternary_descriptor()(
+                    condition.describe(),
+                    lhs.describe(),
+                    rhs.describe(),
+                )
+            }
+            Self::None => "".to_string(),
         }
     }
 }
@@ -845,9 +892,11 @@ mod tests {
         assert!(parser.is_ok());
         let expr_ast = parser.unwrap().parse_chain_expression();
         assert!(expr_ast.is_ok());
-        let ans = expr_ast.unwrap().exec(&mut ctx);
+        let ast = expr_ast.unwrap();
+        let ans = ast.clone().exec(&mut ctx);
         assert!(ans.is_ok());
         assert_eq!(ans.unwrap(), output);
+        ast.clone().describe();
     }
 
     #[rstest]

@@ -32,7 +32,7 @@ type TernaryDescriptor = dyn Fn(String, String, String) -> String + Send + Sync 
 type FunctionDescriptor = dyn Fn(String, Vec<String>) -> String + Send + Sync + 'static;
 type ReferenceDescriptor = dyn Fn(String) -> String + Send + Sync + 'static;
 type ListDescriptor = dyn Fn(Vec<String>) -> String + Send + Sync + 'static;
-type MapDescriptor = dyn Fn(HashMap<String, String>) -> String + Send + Sync + 'static;
+type MapDescriptor = dyn Fn(Vec<(String, String)>) -> String + Send + Sync + 'static;
 type ChainDescriptor = dyn Fn(Vec<String>) -> String + Send + Sync + 'static;
 
 pub struct DescriptorManager {
@@ -237,7 +237,7 @@ fn default_list_descriptor(params: Vec<String>) -> String {
     "[".to_string() + &params.join(",") + "]"
 }
 
-fn default_map_descriptor(m: HashMap<String, String>) -> String {
+fn default_map_descriptor(m: Vec<(String, String)>) -> String {
     let mut tmp = Vec::new();
     for (k, v) in m {
         tmp.push(k + ":" + &v)
