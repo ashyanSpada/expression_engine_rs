@@ -2,7 +2,10 @@ use crate::define::Result;
 use crate::error::Error;
 use crate::value::Value;
 use once_cell::sync::OnceCell;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
+use std::ops::Add;
 use std::sync::{Arc, Mutex};
 
 type BinaryOpFunc = dyn Fn(Value, Value) -> Result<Value> + Send + Sync + 'static;
@@ -383,7 +386,7 @@ impl PostfixOpFuncManager {
             "++",
             Arc::new(|param| {
                 let a = match param {
-                    Value::Number(a) => a,
+                    Value::Number(a) => a + Decimal::from_i32(1).unwrap(),
                     _ => return Err(Error::ShouldBeNumber()),
                 };
                 Ok(Value::Number(a))
@@ -394,7 +397,7 @@ impl PostfixOpFuncManager {
             "--",
             Arc::new(|param| {
                 let a = match param {
-                    Value::Number(a) => a,
+                    Value::Number(a) => a - Decimal::from_i32(1).unwrap(),
                     _ => return Err(Error::ShouldBeNumber()),
                 };
                 Ok(Value::Number(a))
