@@ -1,6 +1,6 @@
 use crate::define::Result;
 use crate::error::Error;
-use crate::keyword::{KeywordManager, KeywordType};
+use crate::keyword;
 use crate::token::{Span, Token};
 use rust_decimal::prelude::*;
 use std::str;
@@ -58,10 +58,7 @@ impl<'a> Tokenizer<'a> {
         loop {
             match self.peek_one() {
                 Some((_, ch)) => {
-                    if KeywordManager::new()
-                        .get_type(&(self.input[start..self.current() + 1].to_string()))
-                        .is_op()
-                    {
+                    if keyword::is_op(&(self.input[start..self.current() + 1].to_string())) {
                         self.next_one();
                     } else {
                         break;
@@ -102,9 +99,7 @@ impl<'a> Tokenizer<'a> {
                 None => break,
             }
         }
-        KeywordManager::new()
-            .get_type(&tmp.input[start..tmp.current()])
-            .is_op()
+        keyword::is_op(&tmp.input[start..tmp.current()])
     }
 
     fn operator_token(&mut self, start: usize) -> Result<Token> {

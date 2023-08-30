@@ -1,6 +1,5 @@
 use crate::define::Result;
 use crate::error::Error;
-use crate::keyword::{KeywordManager, KeywordType};
 use crate::value::Value;
 use once_cell::sync::OnceCell;
 use std::collections::HashMap;
@@ -9,6 +8,8 @@ use std::sync::{Arc, Mutex};
 type BinaryOpFunc = dyn Fn(Value, Value) -> Result<Value> + Send + Sync + 'static;
 
 type UnaryOpFunc = dyn Fn(Value) -> Result<Value> + Send + Sync + 'static;
+
+type PostfixOpFunc = dyn Fn(Value) -> Result<Value> + Send + Sync + 'static;
 
 #[derive(Clone)]
 pub enum BinOpType {
@@ -22,6 +23,10 @@ pub struct BinaryOpFuncManager {
 
 pub struct UnaryOpFuncManager {
     store: &'static Mutex<HashMap<String, Arc<UnaryOpFunc>>>,
+}
+
+pub struct PostfixOpFuncManager {
+    store: &'static Mutex<HashMap<String, Arc<PostfixOpFunc>>>,
 }
 
 impl BinaryOpFuncManager {
@@ -213,7 +218,6 @@ impl BinaryOpFuncManager {
         op_type: BinOpType,
         f: Arc<BinaryOpFunc>,
     ) {
-        KeywordManager::new().register(op, KeywordType::Op);
         self.store
             .lock()
             .unwrap()
@@ -262,6 +266,11 @@ impl BinaryOpFuncManager {
         ans.sort_by(|a, b| a.1.cmp(&b.1));
         ans
     }
+
+    pub fn exist(&self, op: &str) -> bool {
+        let binding = self.store.lock().unwrap();
+        binding.get(op).is_some()
+    }
 }
 
 impl UnaryOpFuncManager {
@@ -306,6 +315,17 @@ impl UnaryOpFuncManager {
         );
 
         self.register(
+            "not",
+            Arc::new(|param| {
+                let a = match param {
+                    Value::Bool(value) => !value,
+                    _ => return Err(Error::ShouldBeBool()),
+                };
+                Ok(Value::Bool(a))
+            }),
+        );
+
+        self.register(
             "AND",
             Arc::new(|value| {
                 let list = value.list()?;
@@ -333,7 +353,6 @@ impl UnaryOpFuncManager {
     }
 
     pub fn register(&mut self, op: &str, f: Arc<UnaryOpFunc>) {
-        KeywordManager::new().register(op, KeywordType::Op);
         self.store.lock().unwrap().insert(op.to_string(), f);
     }
 
@@ -344,6 +363,61 @@ impl UnaryOpFuncManager {
             return Err(Error::UnaryOpNotRegistered(op.to_string()));
         }
         Ok(ans.unwrap().clone())
+    }
+
+    pub fn exist(&self, op: &str) -> bool {
+        let binding = self.store.lock().unwrap();
+        binding.get(op).is_some()
+    }
+}
+
+impl PostfixOpFuncManager {
+    pub fn new() -> Self {
+        static STORE: OnceCell<Mutex<HashMap<String, Arc<UnaryOpFunc>>>> = OnceCell::new();
+        let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
+        Self { store: store }
+    }
+
+    pub fn init(&mut self) {
+        self.register(
+            "++",
+            Arc::new(|param| {
+                let a = match param {
+                    Value::Number(a) => a,
+                    _ => return Err(Error::ShouldBeNumber()),
+                };
+                Ok(Value::Number(a))
+            }),
+        );
+
+        self.register(
+            "--",
+            Arc::new(|param| {
+                let a = match param {
+                    Value::Number(a) => a,
+                    _ => return Err(Error::ShouldBeNumber()),
+                };
+                Ok(Value::Number(a))
+            }),
+        );
+    }
+
+    pub fn register(&mut self, op: &str, f: Arc<PostfixOpFunc>) {
+        self.store.lock().unwrap().insert(op.to_string(), f);
+    }
+
+    pub fn get(&self, op: &str) -> Result<Arc<PostfixOpFunc>> {
+        let binding = self.store.lock().unwrap();
+        let ans = binding.get(op);
+        if ans.is_none() {
+            return Err(Error::UnaryOpNotRegistered(op.to_string()));
+        }
+        Ok(ans.unwrap().clone())
+    }
+
+    pub fn exist(&self, op: &str) -> bool {
+        let binding = self.store.lock().unwrap();
+        binding.get(op).is_some()
     }
 }
 
