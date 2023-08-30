@@ -3,7 +3,7 @@ use crate::define::*;
 use crate::descriptor::DescriptorManager;
 use crate::error::Error;
 use crate::function::InnerFunctionManager;
-use crate::operator::{BinOpType, BinaryOpFuncManager, UnaryOpFuncManager};
+use crate::operator::{BinOpType, BinaryOpFuncManager, PostfixOpFuncManager, UnaryOpFuncManager};
 use crate::token::{DelimTokenType, Token};
 use crate::tokenizer::Tokenizer;
 use crate::value::Value;
@@ -34,6 +34,7 @@ pub enum ExprAST {
     Literal(Literal),
     Unary(String, Box<ExprAST>),
     Binary(String, Box<ExprAST>, Box<ExprAST>),
+    Postfix(Box<ExprAST>, String),
     Ternary(Box<ExprAST>, Box<ExprAST>, Box<ExprAST>),
     Reference(String),
     Function(String, Vec<ExprAST>),
@@ -58,6 +59,9 @@ impl fmt::Display for ExprAST {
                 lhs.clone(),
                 rhs.clone()
             ),
+            Self::Postfix(lhs, op) => {
+                write!(f, "Postfix AST: Lhs: {}, Op: {}", lhs.clone(), op.clone(),)
+            }
             Self::Ternary(condition, lhs, rhs) => write!(
                 f,
                 "Ternary AST: Condition: {}, Lhs: {}, Rhs: {}",
@@ -110,6 +114,7 @@ impl ExprAST {
             Function(name, exprs) => self.exec_function(name, exprs.clone(), ctx),
             Unary(op, rhs) => self.exec_unary(op.clone(), rhs, ctx),
             Binary(op, lhs, rhs) => self.exec_binary(op.clone(), lhs, rhs, ctx),
+            Postfix(lhs, op) => self.exec_postfix(lhs, op.clone(), ctx),
             Ternary(condition, lhs, rhs) => self.exec_ternary(condition, lhs, rhs, ctx),
             List(params) => self.exec_list(params.clone(), ctx),
             Chain(exprs) => self.exec_chain(exprs.clone(), ctx),
@@ -172,6 +177,10 @@ impl ExprAST {
                 Ok(Value::None)
             }
         }
+    }
+
+    fn exec_postfix(&self, lhs: &Box<ExprAST>, op: String, ctx: &mut Context) -> Result<Value> {
+        PostfixOpFuncManager::new().get(&op)?(lhs.exec(ctx)?)
     }
 
     fn exec_ternary(
@@ -239,6 +248,7 @@ impl ExprAST {
             Self::Function(name, exprs) => self.function_expr(name.clone(), exprs.clone()),
             Self::Unary(op, rhs) => self.unary_expr(op, rhs),
             Self::Binary(op, lhs, rhs) => self.binary_expr(op, lhs, rhs),
+            Self::Postfix(lhs, op) => self.postfix_expr(lhs, op),
             Self::Ternary(condition, lhs, rhs) => self.ternary_expr(condition, lhs, rhs),
             Self::List(params) => self.list_expr(params.clone()),
             Self::Map(m) => self.map_expr(m.clone()),
@@ -302,6 +312,10 @@ impl ExprAST {
         left + " " + op + " " + &right
     }
 
+    fn postfix_expr(&self, lhs: &Box<ExprAST>, op: &str) -> String {
+        lhs.expr() + " " + op
+    }
+
     fn ternary_expr(
         &self,
         condition: &Box<ExprAST>,
@@ -361,6 +375,10 @@ impl ExprAST {
             Self::Binary(op, lhs, rhs) => DescriptorManager::new()
                 .get_binary_descriptor(op.clone())(
                 op.clone(), lhs.describe(), rhs.describe()
+            ),
+            Self::Postfix(lhs, op) => DescriptorManager::new().get_postfix_descriptor(op.clone())(
+                lhs.describe(),
+                op.clone(),
             ),
             Self::List(values) => DescriptorManager::new().get_list_descriptor()(
                 values.into_iter().map(|v| v.describe()).collect(),
@@ -481,7 +499,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_primary(&mut self) -> Result<ExprAST> {
-        Ok(self.parse_token()?)
+        let lhs = self.parse_token()?;
+        if self.cur_tok().is_postfix_op_token() {
+            let op = self.cur_tok().string();
+            self.next()?;
+            return Ok(ExprAST::Postfix(Box::new(lhs), op));
+        }
+        Ok(lhs)
     }
 
     fn parse_op(&mut self, exec_prec: i32, mut lhs: ExprAST) -> Result<ExprAST> {
@@ -801,6 +825,14 @@ mod tests {
     #[case("!a", ExprAST::Unary(
         "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
     ))]
+    #[case("2++", ExprAST::Postfix(
+        Box::new(ExprAST::Literal(Literal::Number(2.into()))),
+        "++".to_string(),
+    ))]
+    #[case("2--", ExprAST::Postfix(
+        Box::new(ExprAST::Literal(Literal::Number(2.into()))),
+        "--".to_string(),
+    ))]
     fn test_parse_chain_expression(#[case] input: &str, #[case] output: ExprAST) {
         init();
         let parser = Parser::new(input);
@@ -892,6 +924,8 @@ mod tests {
     #[case("a=3;a^=2;a",(3^2).into())]
     #[case("a=3;a|=2;a",(3|2).into())]
     #[case("+5-2*4",(-3).into())]
+    #[case("2-- +3", 4.into())]
+    #[case("2++ *3", 9.into())]
     fn test_exec(#[case] input: &str, #[case] output: Value) {
         init();
         let mut ctx = create_context!(
@@ -936,6 +970,8 @@ mod tests {
     #[case("{2+3:5,'haha':d}", "{2 + 3:5,\"haha\":d}")]
     #[case("true?4: 2", "true ? 4 : 2")]
     #[case("2+3 >5?4: 2", "2 + 3 > 5 ? 4 : 2")]
+    #[case("2++ + 3", "2 ++ + 3")]
+    #[case("a()++ * 2-7", "a() ++ * 2 - 7")]
     fn test_expression_expr(#[case] input: &str, #[case] output: &str) {
         init();
         let parser = Parser::new(input);

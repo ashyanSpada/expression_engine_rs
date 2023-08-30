@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 enum DescriptorKey {
     UNARY(String),
     BINARY(String),
+    POSTFIX(String),
     TERNARY,
     FUNCTION(String),
     REFERENCE(String),
@@ -18,6 +19,7 @@ enum DescriptorKey {
 enum Descriptor {
     UNARY(Arc<UnaryDescriptor>),
     BINARY(Arc<BinaryDescriptor>),
+    POSTFIX(Arc<PostfixDescriptor>),
     TERNARY(Arc<TernaryDescriptor>),
     FUNCTION(Arc<FunctionDescriptor>),
     REFERENCE(Arc<ReferenceDescriptor>),
@@ -28,6 +30,7 @@ enum Descriptor {
 
 type UnaryDescriptor = dyn Fn(String, String) -> String + Send + Sync + 'static;
 type BinaryDescriptor = dyn Fn(String, String, String) -> String + Send + Sync + 'static;
+type PostfixDescriptor = dyn Fn(String, String) -> String + Send + Sync + 'static;
 type TernaryDescriptor = dyn Fn(String, String, String) -> String + Send + Sync + 'static;
 type FunctionDescriptor = dyn Fn(String, Vec<String>) -> String + Send + Sync + 'static;
 type ReferenceDescriptor = dyn Fn(String) -> String + Send + Sync + 'static;
@@ -95,6 +98,25 @@ impl DescriptorManager {
         match v.unwrap() {
             Descriptor::BINARY(f) => f.clone(),
             _ => Arc::new(default_binary_descriptor),
+        }
+    }
+
+    pub fn set_postfix_descriptor(&mut self, op: String, descriptor: Arc<UnaryDescriptor>) {
+        let key = DescriptorKey::POSTFIX(op);
+        let value = Descriptor::POSTFIX(descriptor);
+        let mut binding = self.store.lock().unwrap();
+        binding.insert(key, value);
+    }
+
+    pub fn get_postfix_descriptor(&self, op: String) -> Arc<UnaryDescriptor> {
+        let key = DescriptorKey::POSTFIX(op);
+        let v = self.get(key);
+        if v.is_none() {
+            return Arc::new(default_postfix_descriptor);
+        }
+        match v.unwrap() {
+            Descriptor::POSTFIX(f) => f.clone(),
+            _ => Arc::new(default_unary_descriptor),
         }
     }
 
@@ -221,6 +243,10 @@ fn default_binary_descriptor(op: String, lhs: String, rhs: String) -> String {
     lhs + &op + &rhs
 }
 
+fn default_postfix_descriptor(lhs: String, op: String) -> String {
+    lhs + &op
+}
+
 fn default_ternary_descriptor(condition: String, lhs: String, rhs: String) -> String {
     condition + "?" + &lhs + ":" + &rhs
 }
@@ -256,6 +282,7 @@ mod tests {
     use super::default_function_descriptor;
     use super::default_list_descriptor;
     use super::default_map_descriptor;
+    use super::default_postfix_descriptor;
     use super::default_reference_descriptor;
     use super::default_ternary_descriptor;
     use super::default_unary_descriptor;
@@ -276,5 +303,7 @@ mod tests {
         DescriptorManager::new().set_ternary_descriptor(Arc::new(default_ternary_descriptor));
         DescriptorManager::new()
             .set_unary_descriptor("haha".to_string(), Arc::new(default_unary_descriptor));
+        DescriptorManager::new()
+            .set_postfix_descriptor("haha".to_string(), Arc::new(default_postfix_descriptor))
     }
 }

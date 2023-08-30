@@ -1,3 +1,4 @@
+use crate::keyword;
 use core::clone::Clone;
 use rust_decimal::Decimal;
 use std::fmt;
@@ -142,6 +143,13 @@ impl Token {
     pub fn is_op_token(&self) -> bool {
         match self {
             Self::Operator(op, _) => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_postfix_op_token(&self) -> bool {
+        match self {
+            Self::Operator(op, _) => keyword::is_postfix_op(op),
             _ => false,
         }
     }

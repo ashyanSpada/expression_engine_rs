@@ -11,7 +11,7 @@ keywords = [
     "math-engine",
     "expressionengine", 
     "ruleengine"
-    ]
+]
 repository = "https://github.com/ashyanSpada/expression_engine_rs"
 documentation = "https://docs.rs/expression_engine/latest/expression_engine/"
 
