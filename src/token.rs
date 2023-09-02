@@ -142,7 +142,7 @@ impl Token {
 
     pub fn is_op_token(&self) -> bool {
         match self {
-            Self::Operator(op, _) => true,
+            Self::Operator(_, _) => true,
             _ => false,
         }
     }
@@ -156,7 +156,14 @@ impl Token {
 
     pub fn is_binop_token(&self) -> bool {
         match self {
-            Self::Operator(op, _) => op != "?" && op != ":",
+            Self::Operator(op, _) => keyword::is_infix_op(op),
+            _ => false,
+        }
+    }
+
+    pub fn is_not_token(&self) -> bool {
+        match self {
+            Self::Operator(op, _) => keyword::is_not(op),
             _ => false,
         }
     }

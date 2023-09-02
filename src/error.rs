@@ -29,6 +29,7 @@ pub enum Error {
     InvalidOp(String),
     InvalidInteger,
     InvalidFloat,
+    ExpectBinOpToken,
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -65,6 +66,7 @@ impl fmt::Display for Error {
             InvalidOp(op) => write!(f, "invalid op {}", op),
             InvalidInteger => write!(f, "invalid integer"),
             InvalidFloat => write!(f, "invalid float"),
+            ExpectBinOpToken => write!(f, "expect bin op token"),
         }
     }
 }

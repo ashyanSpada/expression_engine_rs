@@ -509,9 +509,18 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_op(&mut self, exec_prec: i32, mut lhs: ExprAST) -> Result<ExprAST> {
+        let mut is_not = false;
         loop {
             if !self.cur_tok().is_op_token() {
                 return Ok(lhs);
+            }
+            if self.cur_tok().is_not_token() {
+                is_not = true;
+                self.next()?;
+                if !self.cur_tok().is_binop_token() {
+                    return Err(Error::ExpectBinOpToken);
+                }
+                continue;
             }
             if self.cur_tok().is_question_mark() {
                 self.next()?;
@@ -530,7 +539,11 @@ impl<'a> Parser<'a> {
             if self.cur_tok().is_binop_token() && tok_prec < self.get_token_precidence() {
                 rhs = self.parse_op(tok_prec + 1, rhs)?;
             }
-            lhs = ExprAST::Binary(op, Box::new(lhs), Box::new(rhs))
+            lhs = ExprAST::Binary(op, Box::new(lhs), Box::new(rhs));
+            if is_not {
+                lhs = ExprAST::Unary("not".to_string(), Box::new(lhs));
+                is_not = false;
+            }
         }
     }
 
@@ -833,6 +846,22 @@ mod tests {
         Box::new(ExprAST::Literal(Literal::Number(2.into()))),
         "--".to_string(),
     ))]
+    #[case("2 not in [2]", ExprAST::Unary(
+        "not".to_string(),
+        Box::new(ExprAST::Binary(
+            "in".to_string(),
+            Box::new(
+                ExprAST::Literal(Literal::Number(2.into()))
+            ),
+            Box::new(
+                ExprAST::List(
+                    vec![
+                        ExprAST::Literal(Literal::Number(2.into()))
+                    ]
+                )
+            )
+            ))
+    ))]
     fn test_parse_chain_expression(#[case] input: &str, #[case] output: ExprAST) {
         init();
         let parser = Parser::new(input);
@@ -926,6 +955,9 @@ mod tests {
     #[case("+5-2*4",(-3).into())]
     #[case("2-- +3", 4.into())]
     #[case("2++ *3", 9.into())]
+    #[case("'a' not in ['a']", false.into())]
+    #[case("2 not in ['a', false, true, 1+2]", true.into())]
+    #[case("3 not in ['a', false, true, 1+2] || 3>=2", true.into())]
     fn test_exec(#[case] input: &str, #[case] output: Value) {
         init();
         let mut ctx = create_context!(
