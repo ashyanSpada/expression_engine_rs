@@ -33,7 +33,7 @@ impl<'a> fmt::Display for Literal<'a> {
 pub enum ExprAST<'a> {
     Literal(Literal<'a>),
     Unary(&'a str, Box<ExprAST<'a>>),
-    Binary(String, Box<ExprAST<'a>>, Box<ExprAST<'a>>),
+    Binary(&'a str, Box<ExprAST<'a>>, Box<ExprAST<'a>>),
     Postfix(Box<ExprAST<'a>>, String),
     Ternary(Box<ExprAST<'a>>, Box<ExprAST<'a>>, Box<ExprAST<'a>>),
     Reference(&'a str),
@@ -50,18 +50,15 @@ impl<'a> fmt::Display for ExprAST<'a> {
         match self {
             Self::Literal(val) => write!(f, "Literal AST: {}", val.clone()),
             Self::Unary(op, rhs) => {
-                write!(f, "Unary AST: Op: {}, Rhs: {}", op.clone(), rhs.clone())
+                write!(f, "Unary AST: Op: {}, Rhs: {}", op, rhs.clone())
             }
             Self::Binary(op, lhs, rhs) => write!(
                 f,
                 "Binary AST: Op: {}, Lhs: {}, Rhs: {}",
-                op.clone(),
+                op,
                 lhs.clone(),
                 rhs.clone()
             ),
-            Self::Postfix(lhs, op) => {
-                write!(f, "Postfix AST: Lhs: {}, Op: {}", lhs.clone(), op.clone(),)
-            }
             Self::Postfix(lhs, op) => {
                 write!(f, "Postfix AST: Lhs: {}, Op: {}", lhs.clone(), op.clone(),)
             }
@@ -72,14 +69,14 @@ impl<'a> fmt::Display for ExprAST<'a> {
                 lhs.clone(),
                 rhs.clone()
             ),
-            Self::Reference(name) => write!(f, "Reference AST: reference: {}", name.clone()),
+            Self::Reference(name) => write!(f, "Reference AST: reference: {}", name),
             Self::Function(name, params) => {
                 let mut s = "[".to_string();
                 for param in params.into_iter() {
                     s.push_str(format!("{},", param.clone()).as_str());
                 }
                 s.push(']');
-                write!(f, "Function AST: name: {}, params: {}", name.clone(), s)
+                write!(f, "Function AST: name: {}, params: {}", name, s)
             }
             Self::List(params) => {
                 let mut s = "[".to_string();
@@ -117,7 +114,6 @@ impl<'a> ExprAST<'a> {
             Function(name, exprs) => self.exec_function(name, exprs.clone(), ctx),
             Unary(op, rhs) => self.exec_unary(op, rhs, ctx),
             Binary(op, lhs, rhs) => self.exec_binary(op, lhs, rhs, ctx),
-            Postfix(lhs, op) => self.exec_postfix(lhs, op.clone(), ctx),
             Postfix(lhs, op) => self.exec_postfix(lhs, op.clone(), ctx),
             Ternary(condition, lhs, rhs) => self.exec_ternary(condition, lhs, rhs, ctx),
             List(params) => self.exec_list(params.clone(), ctx),
@@ -175,7 +171,7 @@ impl<'a> ExprAST<'a> {
             BinOpType::SETTER => {
                 let (a, b) = (lhs.exec(ctx)?, rhs.exec(ctx)?);
                 ctx.set_variable(
-                    lhs.get_reference_name()?.as_str(),
+                    lhs.get_reference_name()?,
                     BinaryOpFuncManager::new().get(&op)?(a, b)?,
                 );
                 Ok(Value::None)
@@ -236,8 +232,8 @@ impl<'a> ExprAST<'a> {
         }
     }
 
-    fn get_reference_name(&self) -> Result<String> {
-        match &self {
+    fn get_reference_name(&self) -> Result<&'a str> {
+        match self {
             ExprAST::Reference(name) => Ok(name),
             _ => Err(Error::NotReferenceExpr),
         }
@@ -298,7 +294,7 @@ impl<'a> ExprAST<'a> {
         op.to_string() + " " + &rhs.expr()
     }
 
-    fn binary_expr(&self, op: &String, lhs: &Box<ExprAST>, rhs: &Box<ExprAST>) -> String {
+    fn binary_expr(&self, op: &'a str, lhs: &Box<ExprAST>, rhs: &Box<ExprAST>) -> String {
         let left = {
             let (is, precidence) = lhs.get_precidence();
             let mut tmp: String = lhs.expr();
@@ -374,13 +370,15 @@ impl<'a> ExprAST<'a> {
     pub fn describe(&self) -> String {
         match self {
             Self::Literal(value) => self.expr(),
-            Self::Unary(op, rhs) => DescriptorManager::new().get_unary_descriptor(op.clone())(
-                op.clone(),
+            Self::Unary(op, rhs) => DescriptorManager::new().get_unary_descriptor(op.to_string())(
+                op.to_string(),
                 rhs.describe(),
             ),
             Self::Binary(op, lhs, rhs) => DescriptorManager::new()
-                .get_binary_descriptor(op.clone())(
-                op.clone(), lhs.describe(), rhs.describe()
+                .get_binary_descriptor(op.to_string())(
+                op.to_string(),
+                lhs.describe(),
+                rhs.describe(),
             ),
             Self::Postfix(lhs, op) => DescriptorManager::new().get_postfix_descriptor(op.clone())(
                 lhs.describe(),
@@ -396,13 +394,14 @@ impl<'a> ExprAST<'a> {
                     .collect(),
             ),
             Self::Function(name, values) => DescriptorManager::new()
-                .get_function_descriptor(name.clone())(
-                name.clone(),
+                .get_function_descriptor(name.to_string())(
+                name.to_string(),
                 values.into_iter().map(|v| v.describe()).collect(),
             ),
-            Self::Reference(name) => {
-                DescriptorManager::new().get_reference_descriptor(name.clone())(name.clone())
-            }
+            Self::Reference(name) => DescriptorManager::new()
+                .get_reference_descriptor(name.to_string())(
+                name.to_string()
+            ),
             Self::Chain(values) => DescriptorManager::new().get_chain_descriptor()(
                 values.into_iter().map(|v| v.describe()).collect(),
             ),
@@ -427,10 +426,6 @@ impl<'a> Parser<'a> {
         self.tokenizer.cur_token.clone()
     }
 
-    fn prev_tok(&self) -> Token {
-        self.tokenizer.prev_token.clone()
-    }
-
     pub fn new(input: &'a str) -> Result<Self> {
         let mut tokenizer = Tokenizer::new(input);
         tokenizer.next()?;
@@ -445,10 +440,6 @@ impl<'a> Parser<'a> {
 
     pub fn next(&mut self) -> Result<Token> {
         self.tokenizer.next()
-    }
-
-    fn peek(&self) -> Result<Token> {
-        self.tokenizer.peek()
     }
 
     fn expect(&mut self, expected: &str) -> Result<()> {
@@ -472,10 +463,10 @@ impl<'a> Parser<'a> {
             }
             Token::Reference(val, _) => {
                 self.next()?;
-                Ok(ExprAST::Reference(val.to_string()))
+                Ok(ExprAST::Reference(val))
             }
-            Token::Function(name, _) => self.parse_function(name.to_string()),
-            Token::Operator(op, _) => self.parse_unary(op.to_string()),
+            Token::Function(name, _) => self.parse_function(name),
+            Token::Operator(op, _) => self.parse_unary(op),
             Token::Delim(ty, _) => self.parse_delim(ty),
             Token::EOF => Err(Error::UnexpectedEOF(0)),
             _ => Err(Error::UnexpectedToken()),
@@ -506,10 +497,10 @@ impl<'a> Parser<'a> {
 
     fn parse_primary(&mut self) -> Result<ExprAST<'a>> {
         let lhs = self.parse_token()?;
-        if self.cur_tok().is_postfix_op_token() {
-            let op = self.cur_tok().string();
+        if self.tokenizer.cur_token.is_postfix_op_token() {
+            let op = self.tokenizer.cur_token.string();
             self.next()?;
-            return Ok(ExprAST::Postfix(Box::new(lhs), op));
+            return Ok(ExprAST::Postfix(Box::new(lhs), op.to_string()));
         }
         Ok(lhs)
     }
@@ -517,10 +508,10 @@ impl<'a> Parser<'a> {
     fn parse_op(&mut self, exec_prec: i32, mut lhs: ExprAST<'a>) -> Result<ExprAST<'a>> {
         let mut is_not = false;
         loop {
-            if !self.cur_tok().is_op_token() {
+            if !self.tokenizer.cur_token.is_op_token() {
                 return Ok(lhs);
             }
-            if self.cur_tok().is_not_token() {
+            if self.tokenizer.cur_token.is_not_token() {
                 is_not = true;
                 self.next()?;
                 if !self.cur_tok().is_binop_token() {
@@ -528,7 +519,7 @@ impl<'a> Parser<'a> {
                 }
                 continue;
             }
-            if self.cur_tok().is_question_mark() {
+            if self.tokenizer.cur_token.is_question_mark() {
                 self.next()?;
                 let a = self.parse_expression()?;
                 self.expect(":")?;
@@ -539,15 +530,18 @@ impl<'a> Parser<'a> {
             if tok_prec < exec_prec {
                 return Ok(lhs);
             }
-            let op = self.cur_tok().string();
+            let op: &str = match self.tokenizer.cur_token {
+                Token::Operator(op, _) => op,
+                _ => "",
+            };
             self.next()?;
             let mut rhs = self.parse_primary()?;
-            if self.cur_tok().is_binop_token() && tok_prec < self.get_token_precidence() {
+            if self.tokenizer.cur_token.is_binop_token() && tok_prec < self.get_token_precidence() {
                 rhs = self.parse_op(tok_prec + 1, rhs)?;
             }
             lhs = ExprAST::Binary(op, Box::new(lhs), Box::new(rhs));
             if is_not {
-                lhs = ExprAST::Unary("not".to_string(), Box::new(lhs));
+                lhs = ExprAST::Unary("not", Box::new(lhs));
                 is_not = false;
             }
         }
@@ -572,9 +566,8 @@ impl<'a> Parser<'a> {
 
     fn parse_open_paren(&mut self) -> Result<ExprAST<'a>> {
         self.next()?;
-        let cur_tok = self.tokenizer.cur_token;
         let expr = self.parse_expression()?;
-        if !cur_tok.is_close_paren() {
+        if !self.tokenizer.cur_token.is_close_paren() {
             return Err(Error::NoCloseDelim);
         }
         self.next()?;
@@ -621,7 +614,7 @@ impl<'a> Parser<'a> {
         Ok(ExprAST::Unary(op, Box::new(self.parse_primary()?)))
     }
 
-    fn parse_function(&mut self, name: String) -> Result<ExprAST<'a>> {
+    fn parse_function(&mut self, name: &'a str) -> Result<ExprAST<'a>> {
         self.next()?;
         self.expect("(")?;
         let mut ans = Vec::new();
@@ -658,11 +651,9 @@ mod tests {
     #[case("5", ExprAST::Literal(Literal::Number(Decimal::from_str("5").unwrap_or_default())))]
     #[case("true", ExprAST::Literal(Literal::Bool(true)))]
     #[case("\n false", ExprAST::Literal(Literal::Bool(false)))]
-    #[case("\n haha", ExprAST::Reference("haha".to_string()))]
+    #[case("\n haha", ExprAST::Reference("haha"))]
     #[case("'haha  '", ExprAST::Literal(Literal::String("haha  ")))]
-    #[case("!a", ExprAST::Unary(
-        "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
-    ))]
+    #[case("!a", ExprAST::Unary("!", Box::new(ExprAST::Reference("a"))))]
     fn test_parse_expression_simple(#[case] input: &str, #[case] output: ExprAST) {
         init();
         let parser = Parser::new(input);
@@ -674,28 +665,31 @@ mod tests {
 
     #[rstest]
     #[case("2+3*5", ExprAST::Binary(
-        "+".to_string(), 
+        "+", 
         Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
         Box::new(ExprAST::Binary(
-            "*".to_string(),
+            "*",
             Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
             Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
         ))
     ))]
     #[case("(2+3)*5", ExprAST::Binary(
-        "*".to_string(), 
+        "*", 
         Box::new(ExprAST::Binary(
-            "+".to_string(),
+            "+",
             Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
             Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
         )),
         Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(5).unwrap_or_default()))),
     ))]
-    #[case("'hahhaff' beginWith 'hahha'", ExprAST::Binary(
-        "beginWith".to_string(), 
-        Box::new(ExprAST::Literal(Literal::String("hahhaff"))),
-        Box::new(ExprAST::Literal(Literal::String("hahha"))),
-    ))]
+    #[case(
+        "'hahhaff' beginWith 'hahha'",
+        ExprAST::Binary(
+            "beginWith",
+            Box::new(ExprAST::Literal(Literal::String("hahhaff"))),
+            Box::new(ExprAST::Literal(Literal::String("hahha"))),
+        )
+    )]
     fn test_parse_expression_binary(#[case] input: &str, #[case] output: ExprAST) {
         init();
         let parser = Parser::new(input);
@@ -711,12 +705,12 @@ mod tests {
         vec![
             ExprAST::Literal(Literal::Number(Decimal::from_str("1").unwrap_or_default())),
             ExprAST::Unary(
-                "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+                "!", Box::new(ExprAST::Reference("a"))
             ),
             ExprAST::Binary(
-                "*".to_string(), 
+                "*", 
                 Box::new(ExprAST::Binary(
-                    "+".to_string(),
+                    "+",
                     Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
                     Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
                 )),
@@ -728,12 +722,12 @@ mod tests {
                 vec![
                     ExprAST::Literal(Literal::Number(Decimal::from_str("1").unwrap_or_default())),
                     ExprAST::Unary(
-                        "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
+                        "!", Box::new(ExprAST::Reference("a"))
                     ),
                     ExprAST::Binary(
-                        "*".to_string(), 
+                        "*", 
                         Box::new(ExprAST::Binary(
-                            "+".to_string(),
+                            "+",
                             Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
                             Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
                         )),
@@ -810,28 +804,28 @@ mod tests {
         ExprAST::Chain(
             vec![
                 ExprAST::Binary(
-                    "=".to_string(),
-                    Box::new(ExprAST::Reference("a".to_string())),
+                    "=",
+                    Box::new(ExprAST::Reference("a")),
                     Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("3").unwrap_or_default())))
                 ),
                 ExprAST::Binary(
-                    "+=".to_string(),
-                    Box::new(ExprAST::Reference("a".to_string())),
+                    "+=",
+                    Box::new(ExprAST::Reference("a")),
                     Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("4").unwrap_or_default())))
                 ),
                 ExprAST::Binary(
-                    "=".to_string(),
-                    Box::new(ExprAST::Reference("b".to_string())),
+                    "=",
+                    Box::new(ExprAST::Reference("b")),
                     Box::new(ExprAST::Binary(
-                        "+".to_string(),
-                        Box::new(ExprAST::Reference("a".to_string())),
+                        "+",
+                        Box::new(ExprAST::Reference("a")),
                         Box::new(ExprAST::Literal(Literal::Number(Decimal::from_str("5").unwrap_or_default())))
                     ))
                 ),
                 ExprAST::List(
                     vec![
-                        ExprAST::Reference("a".to_string()),
-                        ExprAST::Reference("b".to_string())
+                        ExprAST::Reference("a"),
+                        ExprAST::Reference("b")
                     ]
                 ),
             ]
@@ -840,11 +834,9 @@ mod tests {
     #[case("5", ExprAST::Literal(Literal::Number(Decimal::from_str("5").unwrap_or_default())))]
     #[case("true", ExprAST::Literal(Literal::Bool(true)))]
     #[case("\n false", ExprAST::Literal(Literal::Bool(false)))]
-    #[case("\n haha", ExprAST::Reference("haha".to_string()))]
+    #[case("\n haha", ExprAST::Reference("haha"))]
     #[case("'haha  '", ExprAST::Literal(Literal::String("haha  ")))]
-    #[case("!a", ExprAST::Unary(
-        "!".to_string(), Box::new(ExprAST::Reference("a".to_string()))
-    ))]
+    #[case("!a", ExprAST::Unary("!", Box::new(ExprAST::Reference("a"))))]
     #[case("2++", ExprAST::Postfix(
         Box::new(ExprAST::Literal(Literal::Number(2.into()))),
         "++".to_string(),
@@ -854,9 +846,9 @@ mod tests {
         "--".to_string(),
     ))]
     #[case("2 not in [2]", ExprAST::Unary(
-        "not".to_string(),
+        "not",
         Box::new(ExprAST::Binary(
-            "in".to_string(),
+            "in",
             Box::new(
                 ExprAST::Literal(Literal::Number(2.into()))
             ),

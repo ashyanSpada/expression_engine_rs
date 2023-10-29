@@ -57,7 +57,7 @@ impl<'a> Tokenizer<'a> {
     fn special_op_token(&mut self, start: usize) -> Result<Token<'a>> {
         loop {
             match self.peek_one() {
-                Some((_, ch)) => {
+                Some((_, _ch)) => {
                     if keyword::is_op(&(self.input[start..self.current() + 1].to_string())) {
                         self.next_one();
                     } else {
