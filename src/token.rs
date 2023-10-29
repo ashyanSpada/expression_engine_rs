@@ -3,7 +3,7 @@ use core::clone::Clone;
 use rust_decimal::Decimal;
 use std::fmt;
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub enum DelimTokenType {
     // "("
     OpenParen,
@@ -66,24 +66,24 @@ impl DelimTokenType {
     }
 }
 
-#[derive(Clone, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Debug, Copy)]
 pub struct Span(pub usize, pub usize);
 
-#[derive(Clone, PartialEq, Debug)]
-pub enum Token {
-    Operator(String, Span),
+#[derive(Clone, PartialEq, Debug, Copy)]
+pub enum Token<'input> {
+    Operator(&'input str, Span),
     Delim(DelimTokenType, Span),
     Number(Decimal, Span),
-    Comma(String, Span),
+    Comma(&'input str, Span),
     Bool(bool, Span),
-    String(String, Span),
-    Reference(String, Span),
-    Function(String, Span),
-    Semicolon(String, Span),
+    String(&'input str, Span),
+    Reference(&'input str, Span),
+    Function(&'input str, Span),
+    Semicolon(&'input str, Span),
     EOF,
 }
 
-pub fn check_op(token: &Token, expected: &str) -> bool {
+pub fn check_op(token: Token, expected: &str) -> bool {
     match token {
         Token::Delim(op, _) => {
             if op.string() == expected {
@@ -100,40 +100,40 @@ pub fn check_op(token: &Token, expected: &str) -> bool {
     return false;
 }
 
-impl Token {
-    pub fn is_open_paren(&self) -> bool {
+impl<'input> Token<'input> {
+    pub fn is_open_paren(self) -> bool {
         check_op(self, "(")
     }
 
-    pub fn is_close_paren(&self) -> bool {
+    pub fn is_close_paren(self) -> bool {
         check_op(self, ")")
     }
 
-    pub fn is_open_bracket(&self) -> bool {
+    pub fn is_open_bracket(self) -> bool {
         check_op(self, "[")
     }
 
-    pub fn is_close_bracket(&self) -> bool {
+    pub fn is_close_bracket(self) -> bool {
         check_op(self, "]")
     }
 
-    pub fn is_open_brace(&self) -> bool {
+    pub fn is_open_brace(self) -> bool {
         check_op(self, "{")
     }
 
-    pub fn is_close_brace(&self) -> bool {
+    pub fn is_close_brace(self) -> bool {
         check_op(self, "}")
     }
 
-    pub fn is_question_mark(&self) -> bool {
+    pub fn is_question_mark(self) -> bool {
         check_op(self, "?")
     }
 
-    pub fn is_colon(&self) -> bool {
+    pub fn is_colon(self) -> bool {
         check_op(self, ":")
     }
 
-    pub fn is_eof(&self) -> bool {
+    pub fn is_eof(self) -> bool {
         match self {
             Self::EOF => true,
             _ => false,
@@ -176,17 +176,17 @@ impl Token {
     }
 
     #[cfg(not(tarpaulin_include))]
-    pub fn string(&self) -> String {
+    pub fn string(self) -> String {
         use Token::*;
         match self {
-            Operator(op, _) => op.clone(),
+            Operator(op, _) => op.to_string(),
             Number(val, _) => val.to_string(),
             Comma(val, _) => val.to_string(),
             Bool(val, _) => val.to_string(),
-            String(val, _) => val.clone(),
-            Reference(val, _) => val.clone(),
-            Function(val, _) => val.clone(),
-            Semicolon(val, _) => val.clone(),
+            String(val, _) => val.to_string(),
+            Reference(val, _) => val.to_string(),
+            Function(val, _) => val.to_string(),
+            Semicolon(val, _) => val.to_string(),
             Delim(ty, _) => ty.string(),
             EOF => "EOF".to_string(),
         }
@@ -201,7 +201,7 @@ impl fmt::Display for Span {
 }
 
 #[cfg(not(tarpaulin_include))]
-impl fmt::Display for Token {
+impl<'input> fmt::Display for Token<'input> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Token::*;
         match self {

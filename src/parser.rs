@@ -455,7 +455,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_token(&mut self) -> Result<ExprAST> {
-        let token = self.cur_tok();
+        let token = self.tokenizer.cur_token.clone();
         match token {
             Token::Number(val, _) => {
                 self.next()?;
@@ -467,14 +467,14 @@ impl<'a> Parser<'a> {
             }
             Token::String(val, _) => {
                 self.next()?;
-                Ok(ExprAST::Literal(Literal::String(val)))
+                Ok(ExprAST::Literal(Literal::String(val.to_string())))
             }
             Token::Reference(val, _) => {
                 self.next()?;
-                Ok(ExprAST::Reference(val))
+                Ok(ExprAST::Reference(val.to_string()))
             }
-            Token::Function(name, _) => self.parse_function(name),
-            Token::Operator(op, _) => self.parse_unary(op),
+            Token::Function(name, _) => self.parse_function(name.to_string()),
+            Token::Operator(op, _) => self.parse_unary(op.to_string()),
             Token::Delim(ty, _) => self.parse_delim(ty),
             Token::EOF => Err(Error::UnexpectedEOF(0)),
             _ => Err(Error::UnexpectedToken()),
