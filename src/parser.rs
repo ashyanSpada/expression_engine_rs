@@ -289,11 +289,11 @@ impl<'a> ExprAST<'a> {
         ans
     }
 
-    fn unary_expr(&self, op: &'a str, rhs: &Box<ExprAST>) -> String {
+    fn unary_expr(&self, op: &'a str, rhs: &ExprAST) -> String {
         op.to_string() + " " + &rhs.expr()
     }
 
-    fn binary_expr(&self, op: &'a str, lhs: &Box<ExprAST>, rhs: &Box<ExprAST>) -> String {
+    fn binary_expr(&self, op: &'a str, lhs: &ExprAST, rhs: &ExprAST) -> String {
         let left = {
             let (is, precidence) = lhs.get_precidence();
             let mut tmp: String = lhs.expr();
@@ -313,16 +313,11 @@ impl<'a> ExprAST<'a> {
         left + " " + op + " " + &right
     }
 
-    fn postfix_expr(&self, lhs: &Box<ExprAST>, op: &str) -> String {
+    fn postfix_expr(&self, lhs: &ExprAST, op: &str) -> String {
         lhs.expr() + " " + op
     }
 
-    fn ternary_expr(
-        &self,
-        condition: &Box<ExprAST>,
-        lhs: &Box<ExprAST>,
-        rhs: &Box<ExprAST>,
-    ) -> String {
+    fn ternary_expr(&self, condition: &ExprAST, lhs: &ExprAST, rhs: &ExprAST) -> String {
         condition.expr() + " ? " + &lhs.expr() + " : " + &rhs.expr()
     }
 
