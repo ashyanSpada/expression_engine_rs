@@ -155,15 +155,15 @@ impl<'a> ExprAST<'a> {
         InnerFunctionManager::new().get(name)?(params)
     }
 
-    fn exec_unary(&self, op: &'a str, rhs: &Box<ExprAST>, ctx: &mut Context) -> Result<Value> {
+    fn exec_unary(&self, op: &'a str, rhs: &ExprAST, ctx: &mut Context) -> Result<Value> {
         UnaryOpFuncManager::new().get(&op)?(rhs.exec(ctx)?)
     }
 
     fn exec_binary(
         &self,
         op: &'a str,
-        lhs: &Box<ExprAST<'a>>,
-        rhs: &Box<ExprAST<'a>>,
+        lhs: &ExprAST<'a>,
+        rhs: &ExprAST<'a>,
         ctx: &mut Context,
     ) -> Result<Value> {
         match BinaryOpFuncManager::new().get_op_type(&op)? {
@@ -179,15 +179,15 @@ impl<'a> ExprAST<'a> {
         }
     }
 
-    fn exec_postfix(&self, lhs: &Box<ExprAST>, op: String, ctx: &mut Context) -> Result<Value> {
+    fn exec_postfix(&self, lhs: &ExprAST, op: String, ctx: &mut Context) -> Result<Value> {
         PostfixOpFuncManager::new().get(&op)?(lhs.exec(ctx)?)
     }
 
     fn exec_ternary(
         &self,
-        condition: &Box<ExprAST>,
-        lhs: &Box<ExprAST>,
-        rhs: &Box<ExprAST>,
+        condition: &ExprAST,
+        lhs: &ExprAST,
+        rhs: &ExprAST,
         ctx: &mut Context,
     ) -> Result<Value> {
         match condition.exec(ctx)? {
@@ -249,7 +249,6 @@ impl<'a> ExprAST<'a> {
             Self::Unary(op, rhs) => self.unary_expr(op, rhs),
             Self::Binary(op, lhs, rhs) => self.binary_expr(op, lhs, rhs),
             Self::Postfix(lhs, op) => self.postfix_expr(lhs, op),
-            Self::Postfix(lhs, op) => self.postfix_expr(lhs, op),
             Self::Ternary(condition, lhs, rhs) => self.ternary_expr(condition, lhs, rhs),
             Self::List(params) => self.list_expr(params.clone()),
             Self::Map(m) => self.map_expr(m.clone()),
@@ -277,7 +276,7 @@ impl<'a> ExprAST<'a> {
         val.to_string()
     }
 
-    fn function_expr(&self, mut name: &'a str, exprs: Vec<ExprAST>) -> String {
+    fn function_expr(&self, name: &'a str, exprs: Vec<ExprAST>) -> String {
         let mut ans = name.to_string();
         ans.push('(');
         for i in 0..exprs.len() {
@@ -369,7 +368,7 @@ impl<'a> ExprAST<'a> {
 impl<'a> ExprAST<'a> {
     pub fn describe(&self) -> String {
         match self {
-            Self::Literal(value) => self.expr(),
+            Self::Literal(_) => self.expr(),
             Self::Unary(op, rhs) => DescriptorManager::new().get_unary_descriptor(op.to_string())(
                 op.to_string(),
                 rhs.describe(),
@@ -744,9 +743,6 @@ mod tests {
         let parser = Parser::new(input);
         assert!(parser.is_ok());
         let expr_ast = parser.unwrap().parse_expression();
-        let parser = Parser::new(input);
-        assert!(parser.is_ok());
-        let expr_ast = parser.unwrap().parse_expression();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
@@ -760,9 +756,6 @@ mod tests {
     )]
     fn test_parse_expression_ternary(#[case] input: &str, #[case] output: ExprAST) {
         init();
-        let parser = Parser::new(input);
-        assert!(parser.is_ok());
-        let expr_ast = parser.unwrap().parse_expression();
         let parser = Parser::new(input);
         assert!(parser.is_ok());
         let expr_ast = parser.unwrap().parse_expression();

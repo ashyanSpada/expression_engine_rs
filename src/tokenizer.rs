@@ -73,7 +73,7 @@ impl<'a> Tokenizer<'a> {
         ))
     }
 
-    fn other_token(&mut self, ch: char, start: usize) -> Result<Token<'a>> {
+    fn other_token(&mut self, _: char, start: usize) -> Result<Token<'a>> {
         if self.try_parse_op(start) {
             return self.operator_token(start);
         }

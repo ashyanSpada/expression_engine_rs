@@ -41,7 +41,7 @@ impl BinaryOpFuncManager {
 
     pub fn init(&mut self) {
         use BinOpType::*;
-        self.register("=", 20, SETTER, Arc::new(|left, right| Ok(right)));
+        self.register("=", 20, SETTER, Arc::new(|_, right| Ok(right)));
 
         for op in vec!["+=", "-=", "*=", "/=", "%="] {
             self.register(
