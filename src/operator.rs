@@ -5,7 +5,6 @@ use once_cell::sync::OnceCell;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::collections::HashMap;
-use std::ops::Add;
 use std::sync::{Arc, Mutex};
 
 type BinaryOpFunc = dyn Fn(Value, Value) -> Result<Value> + Send + Sync + 'static;
@@ -42,7 +41,7 @@ impl BinaryOpFuncManager {
 
     pub fn init(&mut self) {
         use BinOpType::*;
-        self.register("=", 20, SETTER, Arc::new(|left, right| Ok(right)));
+        self.register("=", 20, SETTER, Arc::new(|_, right| Ok(right)));
 
         for op in vec!["+=", "-=", "*=", "/=", "%="] {
             self.register(
