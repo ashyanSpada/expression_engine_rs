@@ -39,16 +39,20 @@ mod init;
 /// let ans = execute(input, ctx).unwrap();
 /// assert_eq!(ans, Value::from(21))
 /// ```
-pub fn execute(expr: &str, mut ctx: context::Context) -> define::Result<value::Value> {
+pub fn execute(expr: &str, mut ctx: context::Context) -> Result<Value> {
+    parse_expression(expr)?.exec(&mut ctx)
+}
+
+pub fn parse_expression(expr: &str) -> Result<ExprAST> {
     use crate::init::init;
     init();
-    parser::Parser::new(expr)?
-        .parse_chain_expression()?
-        .exec(&mut ctx)
+    parser::Parser::new(expr)?.parse_chain_expression()
 }
 
 pub type Value = value::Value;
 pub type Context = context::Context;
+pub type Result<T> = define::Result<T>;
+pub type ExprAST<'a> = parser::ExprAST<'a>;
 
 #[test]
 fn test_exec() {
