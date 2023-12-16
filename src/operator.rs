@@ -14,13 +14,27 @@ type UnaryOpFunc = dyn Fn(Value) -> Result<Value> + Send + Sync + 'static;
 type PostfixOpFunc = dyn Fn(Value) -> Result<Value> + Send + Sync + 'static;
 
 #[derive(Clone)]
-pub enum BinOpType {
+pub enum BinaryOpType {
     CALC,
     SETTER,
 }
 
+#[derive(Clone, PartialEq)]
+pub enum BinaryOpAssociativity {
+    LEFT,
+    RIGHT,
+}
+
+#[derive(Clone)]
+pub struct BinaryOpConfig(
+    pub i32,
+    pub BinaryOpType,
+    pub BinaryOpAssociativity,
+    pub Arc<BinaryOpFunc>,
+);
+
 pub struct BinaryOpFuncManager {
-    store: &'static Mutex<HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)>>,
+    store: &'static Mutex<HashMap<String, BinaryOpConfig>>,
 }
 
 pub struct UnaryOpFuncManager {
@@ -33,21 +47,22 @@ pub struct PostfixOpFuncManager {
 
 impl BinaryOpFuncManager {
     pub fn new() -> Self {
-        static STORE: OnceCell<Mutex<HashMap<String, (i32, BinOpType, Arc<BinaryOpFunc>)>>> =
-            OnceCell::new();
+        static STORE: OnceCell<Mutex<HashMap<String, BinaryOpConfig>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
         BinaryOpFuncManager { store: store }
     }
 
     pub fn init(&mut self) {
-        use BinOpType::*;
-        self.register("=", 20, SETTER, Arc::new(|_, right| Ok(right)));
+        use BinaryOpAssociativity::*;
+        use BinaryOpType::*;
+        self.register("=", 20, SETTER, RIGHT, Arc::new(|_, right| Ok(right)));
 
         for op in vec!["+=", "-=", "*=", "/=", "%="] {
             self.register(
                 op,
                 20,
                 SETTER,
+                RIGHT,
                 Arc::new(move |left, right| {
                     let (mut a, b) = (left.decimal()?, right.decimal()?);
                     match op {
@@ -68,6 +83,7 @@ impl BinaryOpFuncManager {
                 op,
                 20,
                 SETTER,
+                RIGHT,
                 Arc::new(move |left, right| {
                     let (mut a, b) = (left.integer()?, right.integer()?);
                     match op {
@@ -88,6 +104,7 @@ impl BinaryOpFuncManager {
                 op,
                 precedence,
                 CALC,
+                LEFT,
                 Arc::new(move |left, right| {
                     let (mut a, b) = (left.bool()?, right.bool()?);
                     match op {
@@ -105,6 +122,7 @@ impl BinaryOpFuncManager {
                 op,
                 60,
                 CALC,
+                LEFT,
                 Arc::new(move |left, right| {
                     let (a, b) = (left.decimal()?, right.decimal()?);
                     let mut value = false;
@@ -125,6 +143,7 @@ impl BinaryOpFuncManager {
                 op,
                 60,
                 CALC,
+                LEFT,
                 Arc::new(move |left, right| {
                     let mut value = false;
                     match op {
@@ -142,6 +161,7 @@ impl BinaryOpFuncManager {
                 op,
                 precedence,
                 CALC,
+                LEFT,
                 Arc::new(move |left, right| {
                     let (mut a, b) = (left.integer()?, right.integer()?);
                     match op {
@@ -162,6 +182,7 @@ impl BinaryOpFuncManager {
                 op,
                 precedence,
                 CALC,
+                LEFT,
                 Arc::new(move |left, right| {
                     let (mut a, b) = (left.decimal()?, right.decimal()?);
                     match op {
@@ -180,7 +201,8 @@ impl BinaryOpFuncManager {
         self.register(
             "beginWith",
             200,
-            BinOpType::CALC,
+            CALC,
+            LEFT,
             Arc::new(|left, right| {
                 let (a, b) = (left.string()?, right.string()?);
                 Ok(Value::from(a.starts_with(&b)))
@@ -190,7 +212,8 @@ impl BinaryOpFuncManager {
         self.register(
             "endWith",
             200,
-            BinOpType::CALC,
+            CALC,
+            LEFT,
             Arc::new(|left, right| {
                 let (a, b) = (left.string()?, right.string()?);
                 Ok(Value::from(a.ends_with(&b)))
@@ -200,7 +223,8 @@ impl BinaryOpFuncManager {
         self.register(
             "in",
             200,
-            BinOpType::CALC,
+            BinaryOpType::CALC,
+            BinaryOpAssociativity::LEFT,
             Arc::new(|left, right| {
                 let list = right.list()?;
                 for item in list {
@@ -210,59 +234,66 @@ impl BinaryOpFuncManager {
                 }
                 Ok(false.into())
             }),
-        )
+        );
     }
 
     pub fn register(
         &mut self,
         op: &str,
         precidence: i32,
-        op_type: BinOpType,
+        op_type: BinaryOpType,
+        op_associativity: BinaryOpAssociativity,
         f: Arc<BinaryOpFunc>,
     ) {
-        self.store
-            .lock()
-            .unwrap()
-            .insert(op.to_string(), (precidence, op_type, f));
+        self.store.lock().unwrap().insert(
+            op.to_string(),
+            BinaryOpConfig(precidence, op_type, op_associativity, f),
+        );
     }
 
-    pub fn get(&self, op: &str) -> Result<Arc<BinaryOpFunc>> {
-        let binding = self.store.lock().unwrap();
-        let ans = binding.get(op);
-        if ans.is_none() {
-            return Err(Error::BinaryOpNotRegistered(op.to_string()));
-        }
-        Ok(ans.unwrap().2.clone())
+    pub fn get_handler(&self, op: &str) -> Result<Arc<BinaryOpFunc>> {
+        Ok(self.get(op)?.3)
     }
 
-    pub fn get_precidence(&self, op: &str) -> i32 {
-        let binding = self.store.lock().unwrap();
-        let ans = binding.get(op);
-        if ans.is_none() {
-            return -1;
+    pub fn get_precidence(&self, op: &str) -> (i32, i32) {
+        let ans = self.get(op);
+        if ans.is_err() {
+            return (-1, -1);
         }
-        ans.unwrap().0
+        let config = ans.unwrap();
+        let l_bp = config.0;
+        let mut r_bp = 0;
+        if config.2 == BinaryOpAssociativity::LEFT {
+            r_bp = l_bp + 1;
+        } else if config.2 == BinaryOpAssociativity::RIGHT {
+            r_bp = l_bp - 1;
+        }
+        (l_bp, r_bp)
     }
 
     pub fn redirect(&mut self, source: &str, target: &str) {
-        let func = self.store.lock().unwrap().get(target).unwrap().clone();
+        let config = self.store.lock().unwrap().get(target).unwrap().clone();
         let mut binding = self.store.lock().unwrap();
-        binding.insert(source.to_string(), func);
+        binding.insert(source.to_string(), config.clone());
     }
 
-    pub fn get_op_type(&self, op: &str) -> Result<BinOpType> {
+    pub fn get_op_type(&self, op: &str) -> Result<BinaryOpType> {
+        Ok(self.get(op)?.1)
+    }
+
+    pub fn get(&self, op: &str) -> Result<BinaryOpConfig> {
         let binding = self.store.lock().unwrap();
         let ans = binding.get(op);
         if ans.is_none() {
             return Err(Error::BinaryOpNotRegistered(op.to_string()));
         }
-        Ok(ans.unwrap().1.clone())
+        Ok(ans.unwrap().clone())
     }
 
     pub fn operators(&self) -> Vec<(String, i32)> {
         let mut ans = vec![];
         let binding = self.store.lock().unwrap();
-        for (op, (precedence, _, _)) in binding.iter() {
+        for (op, BinaryOpConfig(precedence, _, _, _)) in binding.iter() {
             ans.push((op.clone(), precedence.clone()));
         }
         ans.sort_by(|a, b| a.1.cmp(&b.1));

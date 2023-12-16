@@ -3,7 +3,9 @@ use crate::define::*;
 use crate::descriptor::DescriptorManager;
 use crate::error::Error;
 use crate::function::InnerFunctionManager;
-use crate::operator::{BinOpType, BinaryOpFuncManager, PostfixOpFuncManager, UnaryOpFuncManager};
+use crate::operator::{
+    BinaryOpConfig, BinaryOpFuncManager, BinaryOpType, PostfixOpFuncManager, UnaryOpFuncManager,
+};
 use crate::token::{DelimTokenType, Token};
 use crate::tokenizer::Tokenizer;
 use crate::value::Value;
@@ -167,12 +169,14 @@ impl<'a> ExprAST<'a> {
         ctx: &mut Context,
     ) -> Result<Value> {
         match BinaryOpFuncManager::new().get_op_type(&op)? {
-            BinOpType::CALC => BinaryOpFuncManager::new().get(&op)?(lhs.exec(ctx)?, rhs.exec(ctx)?),
-            BinOpType::SETTER => {
+            BinaryOpType::CALC => {
+                BinaryOpFuncManager::new().get_handler(&op)?(lhs.exec(ctx)?, rhs.exec(ctx)?)
+            }
+            BinaryOpType::SETTER => {
                 let (a, b) = (lhs.exec(ctx)?, rhs.exec(ctx)?);
                 ctx.set_variable(
                     lhs.get_reference_name()?,
-                    BinaryOpFuncManager::new().get(&op)?(a, b)?,
+                    BinaryOpFuncManager::new().get_handler(&op)?(a, b)?,
                 );
                 Ok(Value::None)
             }
@@ -225,10 +229,10 @@ impl<'a> ExprAST<'a> {
         Ok(Value::Map(ans))
     }
 
-    fn get_precidence(&self) -> (bool, i32) {
+    fn get_precidence(&self) -> (bool, (i32, i32)) {
         match self {
             ExprAST::Binary(op, _, _) => (true, BinaryOpFuncManager::new().get_precidence(op)),
-            _ => (false, 0),
+            _ => (false, (-1, -1)),
         }
     }
 
@@ -520,8 +524,8 @@ impl<'a> Parser<'a> {
                 let b = self.parse_expression()?;
                 return Ok(ExprAST::Ternary(Box::new(lhs), Box::new(a), Box::new(b)));
             }
-            let tok_prec = self.get_token_precidence();
-            if tok_prec < exec_prec {
+            let (l_bp, r_bp) = self.get_token_precidence();
+            if l_bp < exec_prec {
                 return Ok(lhs);
             }
             let op: &str = match self.tokenizer.cur_token {
@@ -530,8 +534,10 @@ impl<'a> Parser<'a> {
             };
             self.next()?;
             let mut rhs = self.parse_primary()?;
-            if self.tokenizer.cur_token.is_binop_token() && tok_prec < self.get_token_precidence() {
-                rhs = self.parse_op(tok_prec + 1, rhs)?;
+
+            let (cur_l_bp, _) = self.get_token_precidence();
+            if self.tokenizer.cur_token.is_binop_token() && r_bp < cur_l_bp {
+                rhs = self.parse_op(r_bp, rhs)?;
             }
             lhs = ExprAST::Binary(op, Box::new(lhs), Box::new(rhs));
             if is_not {
@@ -541,10 +547,10 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn get_token_precidence(&self) -> i32 {
+    fn get_token_precidence(&self) -> (i32, i32) {
         match &self.cur_tok() {
             Token::Operator(op, _) => BinaryOpFuncManager::new().get_precidence(op),
-            _ => -1,
+            _ => (-1, -1),
         }
     }
 
@@ -684,6 +690,17 @@ mod tests {
             Box::new(ExprAST::Literal(Literal::String("hahha"))),
         )
     )]
+    #[case("2=3=4", ExprAST::Binary(
+        "=",
+        Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(2).unwrap_or_default()))),
+        Box::new(
+            ExprAST::Binary(
+                "=",
+                Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(3).unwrap_or_default()))),
+                Box::new(ExprAST::Literal(Literal::Number(Decimal::from_i32(4).unwrap_or_default()))),
+            )
+        ),
+    ))]
     fn test_parse_expression_binary(#[case] input: &str, #[case] output: ExprAST) {
         init();
         let parser = Parser::new(input);
@@ -978,7 +995,11 @@ mod tests {
         let ast = expr_ast.unwrap();
         let ans = ast.clone().exec(&mut ctx);
         assert!(ans.is_ok());
-        assert_eq!(ans.unwrap(), output);
+        let res = ans.unwrap();
+        if res.clone() != output {
+            print!("{}", ast.clone());
+        }
+        assert_eq!(res.clone(), output);
         ast.clone().describe();
     }
 
