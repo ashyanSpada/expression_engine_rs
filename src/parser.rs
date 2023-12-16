@@ -782,6 +782,25 @@ mod tests {
     }
 
     #[rstest]
+    #[case("+true")]
+    #[case("- 'hha'")]
+    #[case("! 'haha'")]
+    #[case("fasle ++")]
+    #[case("'haha' --")]
+    fn test_execute_error(#[case] input: &str) {
+        init();
+        let parser = Parser::new(input);
+        assert!(parser.is_ok());
+        let expr_ast = parser.unwrap().parse_expression();
+        assert!(expr_ast.is_ok());
+        let mut ctx = create_context!(
+            "d" => 3,
+            "f" => Arc::new(|_| Ok(Value::from(3)))
+        );
+        assert!(expr_ast.unwrap().exec(&mut ctx).is_err())
+    }
+
+    #[rstest]
     #[case(
         "
         a=3;
