@@ -66,8 +66,7 @@ impl DescriptorManager {
     pub fn set_unary_descriptor(&mut self, op: String, descriptor: Arc<UnaryDescriptor>) {
         let key = DescriptorKey::UNARY(op);
         let value = Descriptor::UNARY(descriptor);
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(key, value);
+        self.set(key, value)
     }
 
     pub fn get_unary_descriptor(&self, op: String) -> Arc<UnaryDescriptor> {
@@ -85,8 +84,7 @@ impl DescriptorManager {
     pub fn set_binary_descriptor(&mut self, op: String, descriptor: Arc<BinaryDescriptor>) {
         let key = DescriptorKey::BINARY(op);
         let value = Descriptor::BINARY(descriptor);
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(key, value);
+        self.set(key, value)
     }
 
     pub fn get_binary_descriptor(&self, op: String) -> Arc<BinaryDescriptor> {
@@ -104,8 +102,7 @@ impl DescriptorManager {
     pub fn set_postfix_descriptor(&mut self, op: String, descriptor: Arc<UnaryDescriptor>) {
         let key = DescriptorKey::POSTFIX(op);
         let value = Descriptor::POSTFIX(descriptor);
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(key, value);
+        self.set(key, value)
     }
 
     pub fn get_postfix_descriptor(&self, op: String) -> Arc<UnaryDescriptor> {
@@ -123,8 +120,7 @@ impl DescriptorManager {
     pub fn set_ternary_descriptor(&mut self, descriptor: Arc<TernaryDescriptor>) {
         let key = DescriptorKey::TERNARY;
         let value = Descriptor::TERNARY(descriptor);
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(key, value);
+        self.set(key, value)
     }
 
     pub fn get_ternary_descriptor(&self) -> Arc<TernaryDescriptor> {
@@ -142,8 +138,7 @@ impl DescriptorManager {
     pub fn set_function_descriptor(&mut self, name: String, descriptor: Arc<FunctionDescriptor>) {
         let key = DescriptorKey::FUNCTION(name);
         let value = Descriptor::FUNCTION(descriptor);
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(key, value);
+        self.set(key, value)
     }
 
     pub fn get_function_descriptor(&self, name: String) -> Arc<FunctionDescriptor> {
@@ -161,8 +156,7 @@ impl DescriptorManager {
     pub fn set_reference_descriptor(&mut self, name: String, descriptor: Arc<ReferenceDescriptor>) {
         let key = DescriptorKey::REFERENCE(name);
         let value = Descriptor::REFERENCE(descriptor);
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(key, value);
+        self.set(key, value)
     }
 
     pub fn get_reference_descriptor(&self, name: String) -> Arc<ReferenceDescriptor> {
@@ -180,8 +174,7 @@ impl DescriptorManager {
     pub fn set_list_descriptor(&mut self, descriptor: Arc<ListDescriptor>) {
         let key = DescriptorKey::LIST;
         let value = Descriptor::LIST(descriptor);
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(key, value);
+        self.set(key, value)
     }
 
     pub fn get_list_descriptor(&self) -> Arc<ListDescriptor> {
@@ -199,8 +192,7 @@ impl DescriptorManager {
     pub fn set_map_descriptor(&mut self, descriptor: Arc<MapDescriptor>) {
         let key = DescriptorKey::MAP;
         let value = Descriptor::MAP(descriptor);
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(key, value);
+        self.set(key, value)
     }
 
     pub fn get_map_descriptor(&self) -> Arc<MapDescriptor> {
@@ -218,8 +210,7 @@ impl DescriptorManager {
     pub fn set_chain_descriptor(&mut self, descriptor: Arc<ChainDescriptor>) {
         let key = DescriptorKey::CHAIN;
         let value = Descriptor::CHAIN(descriptor);
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(key, value);
+        self.set(key, value)
     }
 
     pub fn get_chain_descriptor(&self) -> Arc<ChainDescriptor> {

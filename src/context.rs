@@ -19,22 +19,19 @@ impl Context {
     }
 
     pub fn set_func(&mut self, name: &str, func: Arc<InnerFunction>) {
-        self.0
-            .lock()
-            .unwrap()
-            .insert(name.to_string(), ContextValue::Function(func.clone()));
+        self.set(name, ContextValue::Function(func.clone()));
     }
 
     pub fn set_variable(&mut self, name: &str, value: Value) {
-        self.0
-            .lock()
-            .unwrap()
-            .insert(name.to_string(), ContextValue::Variable(value));
+        self.set(name, ContextValue::Variable(value));
+    }
+
+    pub fn set(&mut self, name: &str, v: ContextValue) {
+        self.0.lock().unwrap().insert(name.to_string(), v);
     }
 
     pub fn get_func(&self, name: &str) -> Option<Arc<InnerFunction>> {
-        let binding = self.0.lock().unwrap();
-        let value = binding.get(name)?;
+        let value = self.get(name)?;
         match value {
             ContextValue::Function(func) => Some(func.clone()),
             ContextValue::Variable(_) => None,
@@ -42,8 +39,7 @@ impl Context {
     }
 
     pub fn get_variable(&self, name: &str) -> Option<Value> {
-        let binding = self.0.lock().unwrap();
-        let value = binding.get(name)?;
+        let value = self.get(name)?;
         match value {
             ContextValue::Variable(v) => Some(v.clone()),
             ContextValue::Function(_) => None,
