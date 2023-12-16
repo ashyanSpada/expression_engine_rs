@@ -46,7 +46,7 @@ pub fn execute(expr: &str, mut ctx: context::Context) -> Result<Value> {
 pub fn parse_expression(expr: &str) -> Result<ExprAST> {
     use crate::init::init;
     init();
-    parser::Parser::new(expr)?.parse_chain_expression()
+    parser::Parser::new(expr)?.parse_stmt()
 }
 
 pub type Value = value::Value;

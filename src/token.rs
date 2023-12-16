@@ -221,7 +221,7 @@ impl<'input> fmt::Display for Token<'input> {
 
 #[cfg(test)]
 mod tests {
-    use super::DelimTokenType;
+    use super::{DelimTokenType, Span, Token};
     use rstest::rstest;
 
     #[rstest]
@@ -246,5 +246,29 @@ mod tests {
     #[case('b', DelimTokenType::Unknown)]
     fn test_delim_token_type_from_char(#[case] input: char, #[case] output: DelimTokenType) {
         assert_eq!(DelimTokenType::from(input), output)
+    }
+
+    #[rstest]
+    #[case(Token::Delim(DelimTokenType::OpenParen, Span(0, 0)), true)]
+    #[case(Token::Delim(DelimTokenType::CloseParen, Span(0, 0)), false)]
+    #[case(Token::Bool(false, Span(0, 0)), false)]
+    fn test_is_open_paren(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(input.is_open_paren(), output)
+    }
+
+    #[rstest]
+    #[case(Token::Delim(DelimTokenType::OpenBrace, Span(0, 0)), true)]
+    #[case(Token::Delim(DelimTokenType::CloseBrace, Span(0, 0)), false)]
+    #[case(Token::Bool(false, Span(0, 0)), false)]
+    fn test_is_open_brace(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(input.is_open_brace(), output)
+    }
+
+    #[rstest]
+    #[case(Token::Delim(DelimTokenType::OpenBracket, Span(0, 0)), true)]
+    #[case(Token::Delim(DelimTokenType::CloseBracket, Span(0, 0)), false)]
+    #[case(Token::Bool(false, Span(0, 0)), false)]
+    fn test_is_open_bracket(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(input.is_open_bracket(), output)
     }
 }

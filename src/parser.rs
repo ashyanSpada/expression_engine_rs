@@ -40,7 +40,7 @@ pub enum ExprAST<'a> {
     Function(&'a str, Vec<ExprAST<'a>>),
     List(Vec<ExprAST<'a>>),
     Map(Vec<(ExprAST<'a>, ExprAST<'a>)>),
-    Chain(Vec<ExprAST<'a>>),
+    Stmt(Vec<ExprAST<'a>>),
     None,
 }
 
@@ -93,7 +93,7 @@ impl<'a> fmt::Display for ExprAST<'a> {
                 }
                 write!(f, "Map AST: {}", s)
             }
-            Self::Chain(exprs) => {
+            Self::Stmt(exprs) => {
                 let mut s = String::new();
                 for expr in exprs {
                     s.push_str(format!("{};", expr.clone()).as_str());
@@ -117,7 +117,7 @@ impl<'a> ExprAST<'a> {
             Postfix(lhs, op) => self.exec_postfix(lhs, op.clone(), ctx),
             Ternary(condition, lhs, rhs) => self.exec_ternary(condition, lhs, rhs, ctx),
             List(params) => self.exec_list(params.clone(), ctx),
-            Chain(exprs) => self.exec_chain(exprs.clone(), ctx),
+            Stmt(exprs) => self.exec_chain(exprs.clone(), ctx),
             Map(m) => self.exec_map(m.clone(), ctx),
             None => Ok(Value::None),
         }
@@ -252,7 +252,7 @@ impl<'a> ExprAST<'a> {
             Self::Ternary(condition, lhs, rhs) => self.ternary_expr(condition, lhs, rhs),
             Self::List(params) => self.list_expr(params.clone()),
             Self::Map(m) => self.map_expr(m.clone()),
-            Self::Chain(exprs) => self.chain_expr(exprs.clone()),
+            Self::Stmt(exprs) => self.chain_expr(exprs.clone()),
             Self::None => "".to_string(),
         }
     }
@@ -396,7 +396,7 @@ impl<'a> ExprAST<'a> {
                 .get_reference_descriptor(name.to_string())(
                 name.to_string()
             ),
-            Self::Chain(values) => DescriptorManager::new().get_chain_descriptor()(
+            Self::Stmt(values) => DescriptorManager::new().get_chain_descriptor()(
                 values.into_iter().map(|v| v.describe()).collect(),
             ),
             Self::Ternary(condition, lhs, rhs) => {
@@ -467,7 +467,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn parse_chain_expression(&mut self) -> Result<ExprAST<'a>> {
+    pub fn parse_stmt(&mut self) -> Result<ExprAST<'a>> {
         let mut ans = Vec::new();
         loop {
             if self.is_eof() {
@@ -481,7 +481,7 @@ impl<'a> Parser<'a> {
         if ans.len() == 1 {
             return Ok(ans[0].clone());
         }
-        Ok(ExprAST::Chain(ans))
+        Ok(ExprAST::Stmt(ans))
     }
 
     pub fn parse_expression(&mut self) -> Result<ExprAST<'a>> {
@@ -789,7 +789,7 @@ mod tests {
         b=a+5;
         [a,b]
     ",
-        ExprAST::Chain(
+        ExprAST::Stmt(
             vec![
                 ExprAST::Binary(
                     "=",
@@ -853,7 +853,7 @@ mod tests {
         init();
         let parser = Parser::new(input);
         assert!(parser.is_ok());
-        let expr_ast = parser.unwrap().parse_chain_expression();
+        let expr_ast = parser.unwrap().parse_stmt();
         assert!(expr_ast.is_ok());
         assert_eq!(expr_ast.unwrap(), output);
     }
@@ -954,7 +954,7 @@ mod tests {
         InnerFunctionManager::new().register("d", Arc::new(|_| Ok(4.into())));
         let parser = Parser::new(input);
         assert!(parser.is_ok());
-        let expr_ast = parser.unwrap().parse_chain_expression();
+        let expr_ast = parser.unwrap().parse_stmt();
         assert!(expr_ast.is_ok());
         let ast = expr_ast.unwrap();
         let ans = ast.clone().exec(&mut ctx);
