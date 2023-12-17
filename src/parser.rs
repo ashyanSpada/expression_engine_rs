@@ -3,9 +3,7 @@ use crate::define::*;
 use crate::descriptor::DescriptorManager;
 use crate::error::Error;
 use crate::function::InnerFunctionManager;
-use crate::operator::{
-    BinaryOpConfig, BinaryOpFuncManager, BinaryOpType, PostfixOpFuncManager, UnaryOpFuncManager,
-};
+use crate::operator::{InfixOpManager, InfixOpType, PostfixOpManager, PrefixOpManager};
 use crate::token::{DelimTokenType, Token};
 use crate::tokenizer::Tokenizer;
 use crate::value::Value;
@@ -158,7 +156,7 @@ impl<'a> ExprAST<'a> {
     }
 
     fn exec_unary(&self, op: &'a str, rhs: &ExprAST, ctx: &mut Context) -> Result<Value> {
-        UnaryOpFuncManager::new().get(&op)?(rhs.exec(ctx)?)
+        PrefixOpManager::new().get(&op)?(rhs.exec(ctx)?)
     }
 
     fn exec_binary(
@@ -168,15 +166,15 @@ impl<'a> ExprAST<'a> {
         rhs: &ExprAST<'a>,
         ctx: &mut Context,
     ) -> Result<Value> {
-        match BinaryOpFuncManager::new().get_op_type(&op)? {
-            BinaryOpType::CALC => {
-                BinaryOpFuncManager::new().get_handler(&op)?(lhs.exec(ctx)?, rhs.exec(ctx)?)
+        match InfixOpManager::new().get_op_type(&op)? {
+            InfixOpType::CALC => {
+                InfixOpManager::new().get_handler(&op)?(lhs.exec(ctx)?, rhs.exec(ctx)?)
             }
-            BinaryOpType::SETTER => {
+            InfixOpType::SETTER => {
                 let (a, b) = (lhs.exec(ctx)?, rhs.exec(ctx)?);
                 ctx.set_variable(
                     lhs.get_reference_name()?,
-                    BinaryOpFuncManager::new().get_handler(&op)?(a, b)?,
+                    InfixOpManager::new().get_handler(&op)?(a, b)?,
                 );
                 Ok(Value::None)
             }
@@ -184,7 +182,7 @@ impl<'a> ExprAST<'a> {
     }
 
     fn exec_postfix(&self, lhs: &ExprAST, op: String, ctx: &mut Context) -> Result<Value> {
-        PostfixOpFuncManager::new().get(&op)?(lhs.exec(ctx)?)
+        PostfixOpManager::new().get(&op)?(lhs.exec(ctx)?)
     }
 
     fn exec_ternary(
@@ -231,7 +229,7 @@ impl<'a> ExprAST<'a> {
 
     fn get_precidence(&self) -> (bool, (i32, i32)) {
         match self {
-            ExprAST::Binary(op, _, _) => (true, BinaryOpFuncManager::new().get_precidence(op)),
+            ExprAST::Binary(op, _, _) => (true, InfixOpManager::new().get_precidence(op)),
             _ => (false, (-1, -1)),
         }
     }
@@ -301,7 +299,7 @@ impl<'a> ExprAST<'a> {
         let left = {
             let (is, precidence) = lhs.get_precidence();
             let mut tmp: String = lhs.expr();
-            if is && precidence < BinaryOpFuncManager::new().get_precidence(op) {
+            if is && precidence < InfixOpManager::new().get_precidence(op) {
                 tmp = "(".to_string() + &lhs.expr() + &")".to_string();
             }
             tmp
@@ -309,7 +307,7 @@ impl<'a> ExprAST<'a> {
         let right = {
             let (is, precidence) = rhs.get_precidence();
             let mut tmp = rhs.expr();
-            if is && precidence < BinaryOpFuncManager::new().get_precidence(op) {
+            if is && precidence < InfixOpManager::new().get_precidence(op) {
                 tmp = "(".to_string() + &rhs.expr() + &")".to_string();
             }
             tmp
@@ -549,7 +547,7 @@ impl<'a> Parser<'a> {
 
     fn get_token_precidence(&self) -> (i32, i32) {
         match &self.cur_tok() {
-            Token::Operator(op, _) => BinaryOpFuncManager::new().get_precidence(op),
+            Token::Operator(op, _) => InfixOpManager::new().get_precidence(op),
             _ => (-1, -1),
         }
     }

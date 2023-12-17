@@ -1,15 +1,15 @@
-use crate::operator::{BinaryOpFuncManager, PostfixOpFuncManager, UnaryOpFuncManager};
+use crate::operator::{InfixOpManager, PostfixOpManager, PrefixOpManager};
 
 pub fn is_prefix_op(op: &str) -> bool {
-    UnaryOpFuncManager::new().exist(op)
+    PrefixOpManager::new().exist(op)
 }
 
 pub fn is_infix_op(op: &str) -> bool {
-    BinaryOpFuncManager::new().exist(op)
+    InfixOpManager::new().exist(op)
 }
 
 pub fn is_postfix_op(op: &str) -> bool {
-    PostfixOpFuncManager::new().exist(op)
+    PostfixOpManager::new().exist(op)
 }
 
 pub fn is_ternary_op(op: &str) -> bool {
