@@ -7,54 +7,54 @@ use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-type BinaryOpFunc = dyn Fn(Value, Value) -> Result<Value> + Send + Sync + 'static;
+pub type InfixOpFunc = dyn Fn(Value, Value) -> Result<Value> + Send + Sync + 'static;
 
-type UnaryOpFunc = dyn Fn(Value) -> Result<Value> + Send + Sync + 'static;
+pub type PrefixOpFunc = dyn Fn(Value) -> Result<Value> + Send + Sync + 'static;
 
-type PostfixOpFunc = dyn Fn(Value) -> Result<Value> + Send + Sync + 'static;
+pub type PostfixOpFunc = dyn Fn(Value) -> Result<Value> + Send + Sync + 'static;
 
 #[derive(Clone)]
-pub enum BinaryOpType {
+pub enum InfixOpType {
     CALC,
     SETTER,
 }
 
 #[derive(Clone, PartialEq)]
-pub enum BinaryOpAssociativity {
+pub enum InfixOpAssociativity {
     LEFT,
     RIGHT,
 }
 
 #[derive(Clone)]
-pub struct BinaryOpConfig(
+pub struct InfixOpConfig(
     pub i32,
-    pub BinaryOpType,
-    pub BinaryOpAssociativity,
-    pub Arc<BinaryOpFunc>,
+    pub InfixOpType,
+    pub InfixOpAssociativity,
+    pub Arc<InfixOpFunc>,
 );
 
-pub struct BinaryOpFuncManager {
-    store: &'static Mutex<HashMap<String, BinaryOpConfig>>,
+pub struct InfixOpManager {
+    store: &'static Mutex<HashMap<String, InfixOpConfig>>,
 }
 
-pub struct UnaryOpFuncManager {
-    store: &'static Mutex<HashMap<String, Arc<UnaryOpFunc>>>,
+pub struct PrefixOpManager {
+    store: &'static Mutex<HashMap<String, Arc<PrefixOpFunc>>>,
 }
 
-pub struct PostfixOpFuncManager {
+pub struct PostfixOpManager {
     store: &'static Mutex<HashMap<String, Arc<PostfixOpFunc>>>,
 }
 
-impl BinaryOpFuncManager {
+impl InfixOpManager {
     pub fn new() -> Self {
-        static STORE: OnceCell<Mutex<HashMap<String, BinaryOpConfig>>> = OnceCell::new();
+        static STORE: OnceCell<Mutex<HashMap<String, InfixOpConfig>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
-        BinaryOpFuncManager { store: store }
+        InfixOpManager { store: store }
     }
 
     pub fn init(&mut self) {
-        use BinaryOpAssociativity::*;
-        use BinaryOpType::*;
+        use InfixOpAssociativity::*;
+        use InfixOpType::*;
         self.register("=", 20, SETTER, RIGHT, Arc::new(|_, right| Ok(right)));
 
         for op in vec!["+=", "-=", "*=", "/=", "%="] {
@@ -223,8 +223,8 @@ impl BinaryOpFuncManager {
         self.register(
             "in",
             200,
-            BinaryOpType::CALC,
-            BinaryOpAssociativity::LEFT,
+            InfixOpType::CALC,
+            InfixOpAssociativity::LEFT,
             Arc::new(|left, right| {
                 let list = right.list()?;
                 for item in list {
@@ -241,17 +241,17 @@ impl BinaryOpFuncManager {
         &mut self,
         op: &str,
         precidence: i32,
-        op_type: BinaryOpType,
-        op_associativity: BinaryOpAssociativity,
-        f: Arc<BinaryOpFunc>,
+        op_type: InfixOpType,
+        op_associativity: InfixOpAssociativity,
+        f: Arc<InfixOpFunc>,
     ) {
         self.store.lock().unwrap().insert(
             op.to_string(),
-            BinaryOpConfig(precidence, op_type, op_associativity, f),
+            InfixOpConfig(precidence, op_type, op_associativity, f),
         );
     }
 
-    pub fn get_handler(&self, op: &str) -> Result<Arc<BinaryOpFunc>> {
+    pub fn get_handler(&self, op: &str) -> Result<Arc<InfixOpFunc>> {
         Ok(self.get(op)?.3)
     }
 
@@ -263,29 +263,23 @@ impl BinaryOpFuncManager {
         let config = ans.unwrap();
         let l_bp = config.0;
         let mut r_bp = 0;
-        if config.2 == BinaryOpAssociativity::LEFT {
+        if config.2 == InfixOpAssociativity::LEFT {
             r_bp = l_bp + 1;
-        } else if config.2 == BinaryOpAssociativity::RIGHT {
+        } else if config.2 == InfixOpAssociativity::RIGHT {
             r_bp = l_bp - 1;
         }
         (l_bp, r_bp)
     }
 
-    pub fn redirect(&mut self, source: &str, target: &str) {
-        let config = self.store.lock().unwrap().get(target).unwrap().clone();
-        let mut binding = self.store.lock().unwrap();
-        binding.insert(source.to_string(), config.clone());
-    }
-
-    pub fn get_op_type(&self, op: &str) -> Result<BinaryOpType> {
+    pub fn get_op_type(&self, op: &str) -> Result<InfixOpType> {
         Ok(self.get(op)?.1)
     }
 
-    pub fn get(&self, op: &str) -> Result<BinaryOpConfig> {
+    pub fn get(&self, op: &str) -> Result<InfixOpConfig> {
         let binding = self.store.lock().unwrap();
         let ans = binding.get(op);
         if ans.is_none() {
-            return Err(Error::BinaryOpNotRegistered(op.to_string()));
+            return Err(Error::InfixOpNotRegistered(op.to_string()));
         }
         Ok(ans.unwrap().clone())
     }
@@ -293,7 +287,7 @@ impl BinaryOpFuncManager {
     pub fn operators(&self) -> Vec<(String, i32)> {
         let mut ans = vec![];
         let binding = self.store.lock().unwrap();
-        for (op, BinaryOpConfig(precedence, _, _, _)) in binding.iter() {
+        for (op, InfixOpConfig(precedence, _, _, _)) in binding.iter() {
             ans.push((op.clone(), precedence.clone()));
         }
         ans.sort_by(|a, b| a.1.cmp(&b.1));
@@ -306,11 +300,11 @@ impl BinaryOpFuncManager {
     }
 }
 
-impl UnaryOpFuncManager {
+impl PrefixOpManager {
     pub fn new() -> Self {
-        static STORE: OnceCell<Mutex<HashMap<String, Arc<UnaryOpFunc>>>> = OnceCell::new();
+        static STORE: OnceCell<Mutex<HashMap<String, Arc<PrefixOpFunc>>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
-        UnaryOpFuncManager { store: store }
+        PrefixOpManager { store: store }
     }
 
     pub fn init(&mut self) {
@@ -385,15 +379,15 @@ impl UnaryOpFuncManager {
         );
     }
 
-    pub fn register(&mut self, op: &str, f: Arc<UnaryOpFunc>) {
+    pub fn register(&mut self, op: &str, f: Arc<PrefixOpFunc>) {
         self.store.lock().unwrap().insert(op.to_string(), f);
     }
 
-    pub fn get(&self, op: &str) -> Result<Arc<UnaryOpFunc>> {
+    pub fn get(&self, op: &str) -> Result<Arc<PrefixOpFunc>> {
         let binding = self.store.lock().unwrap();
         let ans = binding.get(op);
         if ans.is_none() {
-            return Err(Error::UnaryOpNotRegistered(op.to_string()));
+            return Err(Error::PrefixOpNotRegistered(op.to_string()));
         }
         Ok(ans.unwrap().clone())
     }
@@ -404,9 +398,9 @@ impl UnaryOpFuncManager {
     }
 }
 
-impl PostfixOpFuncManager {
+impl PostfixOpManager {
     pub fn new() -> Self {
-        static STORE: OnceCell<Mutex<HashMap<String, Arc<UnaryOpFunc>>>> = OnceCell::new();
+        static STORE: OnceCell<Mutex<HashMap<String, Arc<PrefixOpFunc>>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
         Self { store: store }
     }
@@ -443,7 +437,7 @@ impl PostfixOpFuncManager {
         let binding = self.store.lock().unwrap();
         let ans = binding.get(op);
         if ans.is_none() {
-            return Err(Error::UnaryOpNotRegistered(op.to_string()));
+            return Err(Error::PrefixOpNotRegistered(op.to_string()));
         }
         Ok(ans.unwrap().clone())
     }
@@ -454,10 +448,14 @@ impl PostfixOpFuncManager {
     }
 }
 
-#[test]
-fn test_operators() {
-    let result = BinaryOpFuncManager::new().operators();
-    for (op, precedence) in result {
-        println!("|{}| {}||", op, precedence)
+#[cfg(test)]
+mod tetst {
+    use crate::operator::InfixOpManager;
+    #[test]
+    fn test_operators() {
+        let result = InfixOpManager::new().operators();
+        for (op, precedence) in result {
+            println!("|{}| {}||", op, precedence)
+        }
     }
 }

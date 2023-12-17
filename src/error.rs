@@ -10,8 +10,8 @@ pub enum Error {
     ReferenceNotExist(String),
     FunctionNotExist(String),
     NotSupportedOp(String),
-    BinaryOpNotRegistered(String),
-    UnaryOpNotRegistered(String),
+    InfixOpNotRegistered(String),
+    PrefixOpNotRegistered(String),
     InnerFunctionNotRegistered(String),
     ShouldBeNumber(),
     ShouldBeBool(),
@@ -45,8 +45,8 @@ impl fmt::Display for Error {
             ReferenceNotExist(name) => write!(f, "reference not exist: {}", name),
             FunctionNotExist(name) => write!(f, "function not exist: {}", name),
             NotSupportedOp(op) => write!(f, "not supported op: {}", op),
-            BinaryOpNotRegistered(op) => write!(f, "binary op not registered: {}", op),
-            UnaryOpNotRegistered(op) => write!(f, "unary op not registered: {}", op),
+            InfixOpNotRegistered(op) => write!(f, "binary op not registered: {}", op),
+            PrefixOpNotRegistered(op) => write!(f, "unary op not registered: {}", op),
             InnerFunctionNotRegistered(name) => {
                 write!(f, "inner function not registered: {}", name)
             }
