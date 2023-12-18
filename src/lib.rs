@@ -242,14 +242,18 @@ mod tests {
     #[test]
     fn test_register_infix_op() {
         register_infix_op(
-            "---",
+            "right_minus",
             100,
             InfixOpType::CALC,
             InfixOpAssociativity::RIGHT,
             Arc::new(|left, right| Ok(Value::from(left.integer()? - right.integer()?))),
         );
-        let input = "100---55---44";
+        let input = "100 right_minus 55 right_minus 44";
         let ans = execute(input, create_context!());
+        match &ans {
+            Ok(_) => {}
+            Err(e) => print!("err is {}", e),
+        }
         assert!(ans.is_ok());
         assert_eq!(ans.unwrap(), Value::from(89));
     }
