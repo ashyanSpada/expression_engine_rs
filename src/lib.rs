@@ -25,6 +25,8 @@ mod descriptor;
 mod init;
 use std::sync::Arc;
 
+pub use error::Error;
+
 /// ## Usage
 ///
 /// Calling the engine is simple. At first, define the expression you want to execute. Secondly, create a context to cache the pre-defined inner functions and variables. And then, register the variables and functions to the context. Finally, call the execute function with  the expression and context to get the executing result.
