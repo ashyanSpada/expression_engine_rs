@@ -25,8 +25,6 @@ mod descriptor;
 mod init;
 use std::sync::Arc;
 
-pub use error::Error;
-
 /// ## Usage
 ///
 /// Calling the engine is simple. At first, define the expression you want to execute. Secondly, create a context to cache the pre-defined inner functions and variables. And then, register the variables and functions to the context. Finally, call the execute function with  the expression and context to get the executing result.
@@ -171,6 +169,7 @@ fn init() {
 pub type Value = value::Value;
 pub type Context = context::Context;
 pub type Result<T> = define::Result<T>;
+pub type Error = error::Error;
 pub type ExprAST<'a> = parser::ExprAST<'a>;
 pub type InfixOpType = operator::InfixOpType;
 pub type InfixOpAssociativity = operator::InfixOpAssociativity;
