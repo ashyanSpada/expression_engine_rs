@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{error::Error as StdError, fmt};
 
 #[derive(Debug)]
 pub enum Error {
@@ -31,6 +31,8 @@ pub enum Error {
     InvalidFloat,
     ExpectBinOpToken,
 }
+
+impl StdError for Error {}
 
 #[cfg(not(tarpaulin_include))]
 impl fmt::Display for Error {
