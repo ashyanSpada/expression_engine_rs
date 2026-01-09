@@ -30,7 +30,11 @@ impl InnerFunctionManager {
                         min = Some(num);
                     }
                 }
-                Ok(Value::Number(min.unwrap()))
+                if let Some(min) = min {
+                    Ok(Value::Number(min))
+                } else {
+                    Err(Error::ParamEmpty("min".to_string()))
+                }
             }),
         );
 
@@ -44,7 +48,11 @@ impl InnerFunctionManager {
                         max = Some(num);
                     }
                 }
-                Ok(Value::Number(max.unwrap()))
+                if let Some(max) = max {
+                    Ok(Value::Number(max))
+                } else {
+                    Err(Error::ParamEmpty("max".to_string()))
+                }
             }),
         );
 

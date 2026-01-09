@@ -69,8 +69,18 @@ impl InfixOpManager {
                         "+=" => a += b,
                         "-=" => a -= b,
                         "*=" => a *= b,
-                        "/=" => a /= b,
-                        "%=" => a %= b,
+                        "/=" => {
+                            if b.is_zero() {
+                                return Err(Error::DivByZero);
+                            }
+                            a /= b
+                        }
+                        "%=" => {
+                            if b.is_zero() {
+                                return Err(Error::DivByZero);
+                            }
+                            a %= b
+                        }
                         _ => (),
                     }
                     Ok(Value::Number(a))
@@ -189,8 +199,18 @@ impl InfixOpManager {
                         "+" => a += b,
                         "-" => a -= b,
                         "*" => a *= b,
-                        "/" => a /= b,
-                        "%" => a %= b,
+                        "/" => {
+                            if b.is_zero() {
+                                return Err(Error::DivByZero);
+                            }
+                            a /= b
+                        }
+                        "%" => {
+                            if b.is_zero() {
+                                return Err(Error::DivByZero);
+                            }
+                            a %= b
+                        }
                         _ => (),
                     }
                     Ok(Value::from(a))
