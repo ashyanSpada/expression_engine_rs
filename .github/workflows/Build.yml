@@ -22,7 +22,7 @@ jobs:
           - aarch64-unknown-linux-gnu
       fail-fast: false
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.version }}
@@ -34,7 +34,7 @@ jobs:
       - name: ignored test
         run: cargo test -- --ignored || true
         if: matrix.version == 'nightly'
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: linux ${{ matrix.version }}
@@ -55,7 +55,7 @@ jobs:
           - x86_64-pc-windows-msvc
       fail-fast: false
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.version }}
@@ -63,7 +63,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - name: test
         run: cargo test
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: windows ${{ matrix.version }}
@@ -81,7 +81,7 @@ jobs:
           - x86_64-apple-darwin	
       fail-fast: false
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.version }}
@@ -89,7 +89,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
       - name: test
         run: cargo test
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         #if: failure()
         with:
           name: mac ${{ matrix.version }}
