@@ -30,6 +30,8 @@ pub enum Error {
     InvalidInteger,
     InvalidFloat,
     ExpectBinOpToken,
+    ParamEmpty(String),
+    DivByZero,
 }
 
 #[cfg(not(tarpaulin_include))]
@@ -67,6 +69,8 @@ impl fmt::Display for Error {
             InvalidInteger => write!(f, "invalid integer"),
             InvalidFloat => write!(f, "invalid float"),
             ExpectBinOpToken => write!(f, "expect bin op token"),
+            ParamEmpty(name) => write!(f, "param empty: {}", name),
+            DivByZero => write!(f, "division by zero"),
         }
     }
 }

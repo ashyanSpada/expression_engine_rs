@@ -257,4 +257,36 @@ mod tests {
         assert!(ans.is_ok());
         assert_eq!(ans.unwrap(), Value::from(89));
     }
+
+    #[test]
+    fn test_min_no_panic() {
+        let input = "min()";
+        let ctx = create_context!();
+        let ans = execute(input, ctx);
+        assert!(ans.is_err());
+    }
+
+    #[test]
+    fn test_max_no_panic() {
+        let input = "max()";
+        let ctx = create_context!();
+        let ans = execute(input, ctx);
+        assert!(ans.is_err());
+    }
+
+    #[test]
+    fn test_div_zero_no_panic() {
+        let input = "5 / 0";
+        let ctx = create_context!();
+        let ans = execute(input, ctx);
+        assert!(ans.is_err());
+    }
+
+    #[test]
+    fn test_mod_zero_no_panic() {
+        let input = "5 % 0";
+        let ctx = create_context!();
+        let ans = execute(input, ctx);
+        assert!(ans.is_err());
+    }
 }
