@@ -260,33 +260,53 @@ mod tests {
 
     #[test]
     fn test_min_no_panic() {
+        use crate::error::Error;
         let input = "min()";
         let ctx = create_context!();
         let ans = execute(input, ctx);
         assert!(ans.is_err());
+        match ans.unwrap_err() {
+            Error::ParamEmpty(name) => assert_eq!(name, "min"),
+            _ => panic!("Expected Error::ParamEmpty"),
+        }
     }
 
     #[test]
     fn test_max_no_panic() {
+        use crate::error::Error;
         let input = "max()";
         let ctx = create_context!();
         let ans = execute(input, ctx);
         assert!(ans.is_err());
+        match ans.unwrap_err() {
+            Error::ParamEmpty(name) => assert_eq!(name, "max"),
+            _ => panic!("Expected Error::ParamEmpty"),
+        }
     }
 
     #[test]
     fn test_div_zero_no_panic() {
+        use crate::error::Error;
         let input = "5 / 0";
         let ctx = create_context!();
         let ans = execute(input, ctx);
         assert!(ans.is_err());
+        match ans.unwrap_err() {
+            Error::DivByZero => (),
+            _ => panic!("Expected Error::DivByZero"),
+        }
     }
 
     #[test]
     fn test_mod_zero_no_panic() {
+        use crate::error::Error;
         let input = "5 % 0";
         let ctx = create_context!();
         let ans = execute(input, ctx);
         assert!(ans.is_err());
+        match ans.unwrap_err() {
+            Error::DivByZero => (),
+            _ => panic!("Expected Error::DivByZero"),
+        }
     }
 }
