@@ -28,3 +28,7 @@ criterion = {version="0.5.1", features=["html_reports"]}
 [[bench]]
 name = "execute_expression"
 harness = false
+
+[[bench]]
+name = "display_expression"
+harness = false

@@ -22,8 +22,8 @@ impl<'a> fmt::Display for Literal<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use Literal::*;
         match self {
-            Number(value) => write!(f, "Number: {}", value.clone()),
-            Bool(value) => write!(f, "Bool: {}", value.clone()),
+            Number(value) => write!(f, "Number: {}", value),
+            Bool(value) => write!(f, "Bool: {}", value),
             String(value) => write!(f, "String: {}", *value),
         }
     }
@@ -48,57 +48,55 @@ pub enum ExprAST<'a> {
 impl<'a> fmt::Display for ExprAST<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Literal(val) => write!(f, "Literal AST: {}", val.clone()),
+            Self::Literal(val) => write!(f, "Literal AST: {}", val),
             Self::Unary(op, rhs) => {
-                write!(f, "Unary AST: Op: {}, Rhs: {}", op, rhs.clone())
+                write!(f, "Unary AST: Op: {}, Rhs: {}", op, rhs)
             }
             Self::Binary(op, lhs, rhs) => write!(
                 f,
                 "Binary AST: Op: {}, Lhs: {}, Rhs: {}",
                 op,
-                lhs.clone(),
-                rhs.clone()
+                lhs,
+                rhs
             ),
             Self::Postfix(lhs, op) => {
-                write!(f, "Postfix AST: Lhs: {}, Op: {}", lhs.clone(), op.clone(),)
+                write!(f, "Postfix AST: Lhs: {}, Op: {}", lhs, op,)
             }
             Self::Ternary(condition, lhs, rhs) => write!(
                 f,
                 "Ternary AST: Condition: {}, Lhs: {}, Rhs: {}",
-                condition.clone(),
-                lhs.clone(),
-                rhs.clone()
+                condition,
+                lhs,
+                rhs
             ),
             Self::Reference(name) => write!(f, "Reference AST: reference: {}", name),
             Self::Function(name, params) => {
-                let mut s = "[".to_string();
-                for param in params.into_iter() {
-                    s.push_str(format!("{},", param.clone()).as_str());
+                write!(f, "Function AST: name: {}, params: [", name)?;
+                for param in params {
+                    write!(f, "{},", param)?;
                 }
-                s.push(']');
-                write!(f, "Function AST: name: {}, params: {}", name, s)
+                write!(f, "]")
             }
             Self::List(params) => {
-                let mut s = "[".to_string();
-                for param in params.into_iter() {
-                    s.push_str(format!("{},", param.clone()).as_str());
+                write!(f, "List AST: params: [")?;
+                for param in params {
+                    write!(f, "{},", param)?;
                 }
-                s.push(']');
-                write!(f, "List AST: params: {}", s)
+                write!(f, "]")
             }
             Self::Map(m) => {
-                let mut s = String::new();
+                write!(f, "Map AST: ")?;
                 for (k, v) in m {
-                    s.push_str(format!("({} {}), ", k.clone(), v.clone()).as_str());
+                    write!(f, "({} {}), ", k, v)?;
                 }
-                write!(f, "Map AST: {}", s)
+                Ok(())
             }
             Self::Stmt(exprs) => {
-                let mut s = String::new();
+                write!(f, "Chain AST: ")?;
                 for expr in exprs {
-                    s.push_str(format!("{};", expr.clone()).as_str());
+                    write!(f, "{};", expr)?;
                 }
-                write!(f, "Chain AST: {}", s)
+                Ok(())
             }
             Self::None => write!(f, "None"),
         }
