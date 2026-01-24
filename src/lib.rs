@@ -169,6 +169,7 @@ fn init() {
 pub type Value = value::Value;
 pub type Context = context::Context;
 pub type Result<T> = define::Result<T>;
+pub type Error = error::Error;
 pub type ExprAST<'a> = parser::ExprAST<'a>;
 pub type InfixOpType = operator::InfixOpType;
 pub type InfixOpAssociativity = operator::InfixOpAssociativity;
