@@ -11,6 +11,7 @@ pub enum ContextValue {
     Function(Arc<InnerFunction>),
 }
 
+#[derive(Clone)]
 pub struct Context(pub Arc<Mutex<HashMap<String, ContextValue>>>);
 
 impl Context {
