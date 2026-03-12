@@ -49,7 +49,7 @@ impl InfixOpManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, InfixOpConfig>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
-        InfixOpManager { store: store }
+        InfixOpManager { store }
     }
 
     pub fn init(&mut self) {
@@ -57,7 +57,7 @@ impl InfixOpManager {
         use InfixOpType::*;
         self.register("=", 20, SETTER, RIGHT, Arc::new(|_, right| Ok(right)));
 
-        for op in vec!["+=", "-=", "*=", "/=", "%="] {
+        for op in ["+=", "-=", "*=", "/=", "%="] {
             self.register(
                 op,
                 20,
@@ -88,7 +88,7 @@ impl InfixOpManager {
             );
         }
 
-        for op in vec!["<<=", ">>=", "&=", "^=", "|="] {
+        for op in ["<<=", ">>=", "&=", "^=", "|="] {
             self.register(
                 op,
                 20,
@@ -109,7 +109,7 @@ impl InfixOpManager {
             );
         }
 
-        for (op, precedence) in vec![("||", 40), ("&&", 50)] {
+        for (op, precedence) in [("||", 40), ("&&", 50)] {
             self.register(
                 op,
                 precedence,
@@ -127,7 +127,7 @@ impl InfixOpManager {
             );
         }
 
-        for op in vec!["<", "<=", ">", ">="] {
+        for op in ["<", "<=", ">", ">="] {
             self.register(
                 op,
                 60,
@@ -148,7 +148,7 @@ impl InfixOpManager {
             );
         }
 
-        for op in vec!["==", "!="] {
+        for op in ["==", "!="] {
             self.register(
                 op,
                 60,
@@ -166,7 +166,7 @@ impl InfixOpManager {
             );
         }
 
-        for (op, precedence) in vec![("|", 70), ("^", 80), ("&", 90), ("<<", 100), (">>", 100)] {
+        for (op, precedence) in [("|", 70), ("^", 80), ("&", 90), ("<<", 100), (">>", 100)] {
             self.register(
                 op,
                 precedence,
@@ -187,7 +187,7 @@ impl InfixOpManager {
             );
         }
 
-        for (op, precedence) in vec![("+", 110), ("-", 110), ("*", 120), ("/", 120), ("%", 120)] {
+        for (op, precedence) in [("+", 110), ("-", 110), ("*", 120), ("/", 120), ("%", 120)] {
             self.register(
                 op,
                 precedence,
@@ -308,7 +308,7 @@ impl InfixOpManager {
         let mut ans = vec![];
         let binding = self.store.lock().unwrap();
         for (op, InfixOpConfig(precedence, _, _, _)) in binding.iter() {
-            ans.push((op.clone(), precedence.clone()));
+            ans.push((op.clone(), *precedence));
         }
         ans.sort_by(|a, b| a.1.cmp(&b.1));
         ans
@@ -324,7 +324,7 @@ impl PrefixOpManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, Arc<PrefixOpFunc>>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
-        PrefixOpManager { store: store }
+        PrefixOpManager { store }
     }
 
     pub fn init(&mut self) {
@@ -422,7 +422,7 @@ impl PostfixOpManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, Arc<PrefixOpFunc>>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
-        Self { store: store }
+        Self { store }
     }
 
     pub fn init(&mut self) {
