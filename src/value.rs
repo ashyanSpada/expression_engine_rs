@@ -106,10 +106,7 @@ impl Value {
 
     pub fn float(self) -> Result<f64> {
         match self {
-            Self::Number(val) => val
-                .to_string()
-                .parse()
-                .map_or(Err(Error::InvalidFloat), Ok),
+            Self::Number(val) => val.to_string().parse().map_or(Err(Error::InvalidFloat), Ok),
             _ => Err(Error::InvalidFloat),
         }
     }

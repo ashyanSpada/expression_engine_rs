@@ -417,9 +417,7 @@ impl<'a> Parser<'a> {
     pub fn new(input: &'a str) -> Result<Self> {
         let mut tokenizer = Tokenizer::new(input);
         tokenizer.next()?;
-        Ok(Self {
-            tokenizer,
-        })
+        Ok(Self { tokenizer })
     }
 
     fn is_eof(&self) -> bool {
