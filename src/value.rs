@@ -25,7 +25,7 @@ impl fmt::Display for Value {
                 for value in values {
                     s.push_str(format!("{},", value.clone()).as_str());
                 }
-                s.push_str("]");
+                s.push(']');
                 write!(f, "value list: {}", s)
             }
             Self::Map(m) => {
@@ -34,7 +34,7 @@ impl fmt::Display for Value {
                     s.push_str(format!("key: {},", k.clone()).as_str());
                     s.push_str(format!("value: {}; ", v.clone()).as_str());
                 }
-                s.push_str("}");
+                s.push('}');
                 write!(f, "value map: {}", s)
             }
             Self::None => write!(f, "None"),
@@ -99,17 +99,14 @@ impl Value {
             Self::Number(val) => val
                 .to_string()
                 .parse()
-                .map_or(Err(Error::InvalidInteger), |num| Ok(num)),
+                .map_or(Err(Error::InvalidInteger), Ok),
             _ => Err(Error::InvalidInteger),
         }
     }
 
     pub fn float(self) -> Result<f64> {
         match self {
-            Self::Number(val) => val
-                .to_string()
-                .parse()
-                .map_or(Err(Error::InvalidFloat), |num| Ok(num)),
+            Self::Number(val) => val.to_string().parse().map_or(Err(Error::InvalidFloat), Ok),
             _ => Err(Error::InvalidFloat),
         }
     }

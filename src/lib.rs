@@ -54,7 +54,7 @@ pub fn execute(expr: &str, mut ctx: context::Context) -> Result<Value> {
 /// let ast = parse_expression(input);
 /// assert!(ast.is_ok());
 /// ```
-pub fn parse_expression(expr: &str) -> Result<ExprAST> {
+pub fn parse_expression(expr: &str) -> Result<ExprAST<'_>> {
     init();
     parser::Parser::new(expr)?.parse_stmt()
 }

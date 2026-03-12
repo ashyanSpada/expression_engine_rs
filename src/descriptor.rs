@@ -57,9 +57,7 @@ impl DescriptorManager {
     fn get(&self, key: DescriptorKey) -> Option<Descriptor> {
         let binding = self.store.lock().unwrap();
         let value = binding.get(&key);
-        if value.is_none() {
-            return None;
-        }
+        value?;
         Some(value.unwrap().clone())
     }
 

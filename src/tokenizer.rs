@@ -15,9 +15,9 @@ pub struct Tokenizer<'a> {
 }
 
 impl<'a> Tokenizer<'a> {
-    pub fn new(input: &str) -> Tokenizer {
+    pub fn new(input: &str) -> Tokenizer<'_> {
         Tokenizer {
-            input: input,
+            input,
             chars: input.char_indices(),
             cur_char: ' ',
             cur_token: Token::EOF,
@@ -58,7 +58,7 @@ impl<'a> Tokenizer<'a> {
         loop {
             match self.peek_one() {
                 Some((_, _ch)) => {
-                    if keyword::is_op(&(self.input[start..self.current() + 1].to_string())) {
+                    if keyword::is_op(&self.input[start..self.current() + 1]) {
                         self.next_one();
                     } else {
                         break;
@@ -83,7 +83,7 @@ impl<'a> Tokenizer<'a> {
         } else if atom == "False" || atom == "false" {
             return self.bool_token(start, false);
         }
-        return self.function_or_reference_token(atom, start);
+        self.function_or_reference_token(atom, start)
     }
 
     fn try_parse_op(&self, start: usize) -> bool {
@@ -114,10 +114,10 @@ impl<'a> Tokenizer<'a> {
                 None => break,
             }
         }
-        return Ok(Token::Operator(
+        Ok(Token::Operator(
             self.input[start..self.current()].into(),
             Span(start, self.current()),
-        ));
+        ))
     }
 
     fn parse_var(&mut self, start: usize) -> (&'a str, usize) {
@@ -136,12 +136,12 @@ impl<'a> Tokenizer<'a> {
         (self.input[start..self.current()].into(), start)
     }
 
-    pub fn peek(&self) -> Result<Token> {
+    pub fn peek(&self) -> Result<Token<'_>> {
         self.clone().next()
     }
 
     pub fn expect(&mut self, op: &str) -> Result<()> {
-        let token = self.cur_token.clone();
+        let token = self.cur_token;
         self.next()?;
         match token {
             Token::Delim(bracket, _) => {
@@ -268,23 +268,23 @@ impl<'a> Tokenizer<'a> {
 }
 
 fn is_digit_char(ch: char) -> bool {
-    return '0' <= ch && ch <= '9' || ch == '.' || ch == '-' || ch == 'e' || ch == 'E' || ch == '+';
+    ch.is_ascii_digit() || ch == '.' || ch == '-' || ch == 'e' || ch == 'E' || ch == '+'
 }
 
 fn is_whitespace_char(ch: char) -> bool {
-    return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n';
+    ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n'
 }
 
 fn is_delim_char(ch: char) -> bool {
-    return ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}';
+    ch == '(' || ch == ')' || ch == '[' || ch == ']' || ch == '{' || ch == '}'
 }
 
 fn is_param_char(ch: char) -> bool {
-    return ('0' <= ch && ch <= '9')
-        || ('a' <= ch && ch <= 'z')
-        || ('A' <= ch && ch <= 'Z')
+    ch.is_ascii_digit()
+        || ch.is_ascii_lowercase()
+        || ch.is_ascii_uppercase()
         || ch == '.'
-        || ch == '_';
+        || ch == '_'
 }
 
 #[cfg(test)]

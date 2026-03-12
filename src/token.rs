@@ -97,7 +97,7 @@ pub fn check_op(token: Token, expected: &str) -> bool {
         }
         _ => return false,
     }
-    return false;
+    false
 }
 
 impl<'input> Token<'input> {
