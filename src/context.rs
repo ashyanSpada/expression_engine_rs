@@ -47,19 +47,23 @@ impl Context {
     }
 
     pub fn get(&self, name: &str) -> Option<ContextValue> {
+        // Bolt: Reduce MutexGuard scope and avoid double-access by using `.cloned()` directly.
         let binding = self.0.lock().unwrap();
-        let value = binding.get(name)?;
-        Some(value.clone())
+        binding.get(name).cloned()
     }
 
     pub fn value(&self, name: &str) -> Result<Value> {
-        let binding = self.0.lock().unwrap();
-        if binding.get(name).is_none() {
-            return Ok(Value::None);
-        }
-        let value = binding.get(name).unwrap();
+        // Bolt: Constrain MutexGuard scope to avoid holding lock during function execution
+        // and reduce lock contention overhead for concurrent accesses.
+        let value = {
+            let binding = self.0.lock().unwrap();
+            match binding.get(name) {
+                Some(v) => v.clone(),
+                None => return Ok(Value::None),
+            }
+        };
         match value {
-            ContextValue::Variable(v) => Ok(v.clone()),
+            ContextValue::Variable(v) => Ok(v),
             ContextValue::Function(func) => func(Vec::new()),
         }
     }
