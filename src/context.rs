@@ -99,3 +99,28 @@ macro_rules! create_context {
         ctx
     }};
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_context_lookups() {
+        let mut ctx = Context::new();
+        ctx.set_variable("v", Value::from(42));
+        ctx.set_func("f", Arc::new(|_| Ok(Value::from(99))));
+
+        assert_eq!(ctx.get_variable("v"), Some(Value::from(42)));
+        assert!(ctx.get_variable("f").is_none());
+        assert!(ctx.get_variable("missing").is_none());
+
+        assert!(ctx.get_func("f").is_some());
+        assert!(ctx.get_func("v").is_none());
+        assert!(ctx.get_func("missing").is_none());
+
+        assert_eq!(ctx.value("v").unwrap(), Value::from(42));
+        assert_eq!(ctx.value("f").unwrap(), Value::from(99));
+        assert_eq!(ctx.value("missing").unwrap(), Value::None);
+    }
+}
