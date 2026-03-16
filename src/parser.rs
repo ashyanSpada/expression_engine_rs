@@ -52,22 +52,16 @@ impl<'a> fmt::Display for ExprAST<'a> {
             Self::Unary(op, rhs) => {
                 write!(f, "Unary AST: Op: {}, Rhs: {}", op, rhs)
             }
-            Self::Binary(op, lhs, rhs) => write!(
-                f,
-                "Binary AST: Op: {}, Lhs: {}, Rhs: {}",
-                op,
-                lhs,
-                rhs
-            ),
+            Self::Binary(op, lhs, rhs) => {
+                write!(f, "Binary AST: Op: {}, Lhs: {}, Rhs: {}", op, lhs, rhs)
+            }
             Self::Postfix(lhs, op) => {
                 write!(f, "Postfix AST: Lhs: {}, Op: {}", lhs, op,)
             }
             Self::Ternary(condition, lhs, rhs) => write!(
                 f,
                 "Ternary AST: Condition: {}, Lhs: {}, Rhs: {}",
-                condition,
-                lhs,
-                rhs
+                condition, lhs, rhs
             ),
             Self::Reference(name) => write!(f, "Reference AST: reference: {}", name),
             Self::Function(name, params) => {
