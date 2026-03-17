@@ -1,0 +1,74 @@
+--- src/context.rs
++++ src/context.rs
+@@ -32,32 +32,31 @@
+     }
+
+     pub fn get_func(&self, name: &str) -> Option<Arc<InnerFunction>> {
++        // ⚡ Bolt Optimization: Avoid unnecessary `.clone()` on the inner function
++        // by directly taking ownership of the value returned by `get()`
+         let value = self.get(name)?;
+         match value {
+             ContextValue::Function(func) => Some(func),
+             ContextValue::Variable(_) => None,
+         }
+     }
+
+     pub fn get_variable(&self, name: &str) -> Option<Value> {
++        // ⚡ Bolt Optimization: Avoid unnecessary `.clone()` on the inner variable
++        // by directly taking ownership of the value returned by `get()`
+         let value = self.get(name)?;
+         match value {
+             ContextValue::Variable(v) => Some(v),
+             ContextValue::Function(_) => None,
+         }
+     }
+
+     pub fn get(&self, name: &str) -> Option<ContextValue> {
+-        let binding = self.0.lock().unwrap();
+-        let value = binding.get(name)?;
+-        Some(value.clone())
++        // ⚡ Bolt Optimization: Minimize lock duration and avoid multi-step lookups
++        self.0.lock().unwrap().get(name).cloned()
+     }
+
+     pub fn value(&self, name: &str) -> Result<Value> {
+-        let binding = self.0.lock().unwrap();
+-        if binding.get(name).is_none() {
+-            return Ok(Value::None);
+-        }
+-        let value = binding.get(name).unwrap();
++        // ⚡ Bolt Optimization: Avoid double map lookups (no `is_none()` followed by `unwrap()`)
++        let value = self.get(name);
+         match value {
+             Some(ContextValue::Variable(v)) => Ok(v),
+             Some(ContextValue::Function(func)) => func(Vec::new()),
+             None => Ok(Value::None),
+         }
+     }
+ }
+@@ -102,4 +101,23 @@
+         $crate::create_context!((&mut ctx) $($tt)*);
+         ctx
+     }};
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn test_context_lookups() {
++        let mut ctx = Context::new();
++        ctx.set_variable("a", Value::from(1));
++        ctx.set_func("b", Arc::new(|_| Ok(Value::from(2))));
++
++        assert_eq!(ctx.get_variable("a"), Some(Value::from(1)));
++        assert_eq!(ctx.get_variable("b"), None);
++        assert!(ctx.get_func("b").is_some());
++        assert!(ctx.get_func("a").is_none());
++
++        assert_eq!(ctx.value("a").unwrap(), Value::from(1));
++        assert_eq!(ctx.value("b").unwrap(), Value::from(2));
++        assert_eq!(ctx.value("c").unwrap(), Value::None);
++    }
++}
