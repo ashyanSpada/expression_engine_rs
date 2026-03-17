@@ -1,0 +1,27 @@
+--- src/context.rs
++++ src/context.rs
+@@ -107,4 +107,24 @@
+         $crate::create_context!((&mut ctx) $($tt)*);
+         ctx
+     }};
+ }
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++
++    #[test]
++    fn test_context_lookups() {
++        let mut ctx = Context::new();
++        ctx.set_variable("a", Value::from(1));
++        ctx.set_func("b", Arc::new(|_| Ok(Value::from(2))));
++
++        assert_eq!(ctx.get_variable("a"), Some(Value::from(1)));
++        assert_eq!(ctx.get_variable("b"), None);
++        assert!(ctx.get_func("b").is_some());
++        assert!(ctx.get_func("a").is_none());
++
++        assert_eq!(ctx.value("a").unwrap(), Value::from(1));
++        assert_eq!(ctx.value("b").unwrap(), Value::from(2));
++        assert_eq!(ctx.value("c").unwrap(), Value::None);
++    }
