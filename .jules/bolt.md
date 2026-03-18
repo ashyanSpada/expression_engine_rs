@@ -1,0 +1,3 @@
+## 2026-03-18 - Optimize Context lookups
+**Learning:** In highly accessed global state structures like `Context`, redundantly cloning the encapsulated `ContextValue` struct and its underlying inner values inside lock blocks leads to measurable overhead and unnecessary allocations. Further, double hash map lookups where we check if a key exists then immediately unwrap it again, can be simply avoided using pattern matching.
+**Action:** Use single `.get()` calls over hash maps followed by `.cloned()`. Pattern match directly on the result to avoid redundant hash map operations. Ensure locks are dropped before executing potentially long-running functions.
