@@ -1,4 +1,4 @@
-use criterion::{criterion_group, criterion_main, Criterion, black_box};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use expression_engine::{parse_expression, ExprAST};
 
 fn bench_display_expression(c: &mut Criterion) {
