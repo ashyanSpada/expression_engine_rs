@@ -98,3 +98,31 @@ macro_rules! create_context {
         ctx
     }};
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_context() {
+        let mut ctx = Context::new();
+        ctx.set_variable("a", Value::from(1));
+        ctx.set_func("f", Arc::new(|_| Ok(Value::from(2))));
+
+        // get_func
+        assert!(ctx.get_func("f").is_some());
+        assert!(ctx.get_func("a").is_none()); // covers Variable(_) => None
+        assert!(ctx.get_func("nonexistent").is_none());
+
+        // get_variable
+        assert!(ctx.get_variable("a").is_some());
+        assert!(ctx.get_variable("f").is_none()); // covers Function(_) => None
+        assert!(ctx.get_variable("nonexistent").is_none());
+
+        // value
+        assert_eq!(ctx.value("a").unwrap(), Value::from(1));
+        assert_eq!(ctx.value("f").unwrap(), Value::from(2));
+        assert_eq!(ctx.value("nonexistent").unwrap(), Value::None);
+    }
+}
