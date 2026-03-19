@@ -98,3 +98,31 @@ macro_rules! create_context {
         ctx
     }};
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::value::Value;
+
+    #[test]
+    fn test_context_methods() {
+        let mut ctx = Context::new();
+        ctx.set_variable("var1", Value::from(42));
+        ctx.set_func("func1", Arc::new(|_| Ok(Value::from(100))));
+
+        // Test get_variable
+        assert_eq!(ctx.get_variable("var1").unwrap(), Value::from(42));
+        assert!(ctx.get_variable("func1").is_none());
+        assert!(ctx.get_variable("not_found").is_none());
+
+        // Test get_func
+        assert!(ctx.get_func("func1").is_some());
+        assert!(ctx.get_func("var1").is_none());
+        assert!(ctx.get_func("not_found").is_none());
+
+        // Test value
+        assert_eq!(ctx.value("var1").unwrap(), Value::from(42));
+        assert_eq!(ctx.value("func1").unwrap(), Value::from(100));
+        assert_eq!(ctx.value("not_found").unwrap(), Value::None);
+    }
+}
