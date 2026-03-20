@@ -106,3 +106,38 @@ macro_rules! create_context {
         ctx
     }};
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_context_lookups() {
+        let mut ctx = Context::new();
+        ctx.set_variable("my_var", Value::from(42));
+        ctx.set_func("my_func", Arc::new(|_| Ok(Value::from(100))));
+
+        // get_variable
+        assert_eq!(ctx.get_variable("my_var"), Some(Value::from(42)));
+        assert_eq!(ctx.get_variable("my_func"), None);
+        assert_eq!(ctx.get_variable("non_existent"), None);
+
+        // get_func
+        assert!(ctx.get_func("my_func").is_some());
+        assert!(ctx.get_func("my_var").is_none());
+        assert!(ctx.get_func("non_existent").is_none());
+
+        // value
+        assert_eq!(ctx.value("my_var").unwrap(), Value::from(42));
+        assert_eq!(ctx.value("my_func").unwrap(), Value::from(100));
+        assert_eq!(ctx.value("non_existent").unwrap(), Value::None);
+
+        // get
+        assert!(matches!(ctx.get("my_var"), Some(ContextValue::Variable(_))));
+        assert!(matches!(
+            ctx.get("my_func"),
+            Some(ContextValue::Function(_))
+        ));
+        assert!(matches!(ctx.get("non_existent"), None));
+    }
+}
