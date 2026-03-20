@@ -1,0 +1,3 @@
+## 2024-05-24 - Context Map Lookups and Locking Contention
+**Learning:** Double lookups inside `MutexGuard` sections combined with unnecessary entire Enum cloning create notable lock contention and memory allocation overhead. Specifically, `binding.get(name).is_none()` followed by `binding.get(name).unwrap()` traverses the map twice unnecessarily.
+**Action:** Always perform a single `.get(name)` map lookup, and match on the borrowed enum reference to clone ONLY the internal value (like an `Arc` or `Value`), bypassing full `ContextValue` copying. Drop the `MutexGuard` explicitly BEFORE invoking external closures/functions (like `func(Vec::new())`) to reduce contention and prevent deadlocks on reentrant code.
