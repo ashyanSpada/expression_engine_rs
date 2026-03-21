@@ -33,7 +33,7 @@ impl Context {
     pub fn get_func(&self, name: &str) -> Option<Arc<InnerFunction>> {
         let value = self.get(name)?;
         match value {
-            ContextValue::Function(func) => Some(func.clone()),
+            ContextValue::Function(func) => Some(func),
             ContextValue::Variable(_) => None,
         }
     }
@@ -41,27 +41,69 @@ impl Context {
     pub fn get_variable(&self, name: &str) -> Option<Value> {
         let value = self.get(name)?;
         match value {
-            ContextValue::Variable(v) => Some(v.clone()),
+            ContextValue::Variable(v) => Some(v),
             ContextValue::Function(_) => None,
         }
     }
 
     pub fn get(&self, name: &str) -> Option<ContextValue> {
         let binding = self.0.lock().unwrap();
-        let value = binding.get(name)?;
-        Some(value.clone())
+        binding.get(name).cloned()
     }
 
     pub fn value(&self, name: &str) -> Result<Value> {
-        let binding = self.0.lock().unwrap();
-        if binding.get(name).is_none() {
-            return Ok(Value::None);
-        }
-        let value = binding.get(name).unwrap();
+        let value = {
+            let binding = self.0.lock().unwrap();
+            binding.get(name).cloned()
+        };
+
         match value {
-            ContextValue::Variable(v) => Ok(v.clone()),
-            ContextValue::Function(func) => func(Vec::new()),
+            Some(ContextValue::Variable(v)) => Ok(v),
+            Some(ContextValue::Function(func)) => func(Vec::new()),
+            None => Ok(Value::None),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_context_value_none() {
+        let ctx = Context::new();
+        assert_eq!(ctx.value("missing").unwrap(), Value::None);
+    }
+
+    #[test]
+    fn test_context_get_miss() {
+        let ctx = Context::new();
+        assert!(ctx.get("missing").is_none());
+        assert!(ctx.get_variable("missing").is_none());
+        assert!(ctx.get_func("missing").is_none());
+    }
+
+    #[test]
+    fn test_context_get_hit() {
+        let mut ctx = Context::new();
+        ctx.set_variable("var", Value::from(42));
+        ctx.set_func("func", Arc::new(|_| Ok(Value::from(100))));
+
+        assert!(matches!(ctx.get("var").unwrap(), ContextValue::Variable(_)));
+        assert_eq!(ctx.get_variable("var").unwrap(), Value::from(42));
+        assert!(ctx.get_func("var").is_none());
+
+        assert!(matches!(
+            ctx.get("func").unwrap(),
+            ContextValue::Function(_)
+        ));
+        assert!(ctx.get_func("func").is_some());
+        assert!(ctx.get_variable("func").is_none());
+
+        // Also hit value() for the variable case since the earlier test only checked None
+        assert_eq!(ctx.value("var").unwrap(), Value::from(42));
+        // And hit value() for the function case
+        assert_eq!(ctx.value("func").unwrap(), Value::from(100));
     }
 }
 
