@@ -74,6 +74,37 @@ mod tests {
         let ctx = Context::new();
         assert_eq!(ctx.value("missing").unwrap(), Value::None);
     }
+
+    #[test]
+    fn test_context_get_miss() {
+        let ctx = Context::new();
+        assert!(ctx.get("missing").is_none());
+        assert!(ctx.get_variable("missing").is_none());
+        assert!(ctx.get_func("missing").is_none());
+    }
+
+    #[test]
+    fn test_context_get_hit() {
+        let mut ctx = Context::new();
+        ctx.set_variable("var", Value::from(42));
+        ctx.set_func("func", Arc::new(|_| Ok(Value::from(100))));
+
+        assert!(matches!(ctx.get("var").unwrap(), ContextValue::Variable(_)));
+        assert_eq!(ctx.get_variable("var").unwrap(), Value::from(42));
+        assert!(ctx.get_func("var").is_none());
+
+        assert!(matches!(
+            ctx.get("func").unwrap(),
+            ContextValue::Function(_)
+        ));
+        assert!(ctx.get_func("func").is_some());
+        assert!(ctx.get_variable("func").is_none());
+
+        // Also hit value() for the variable case since the earlier test only checked None
+        assert_eq!(ctx.value("var").unwrap(), Value::from(42));
+        // And hit value() for the function case
+        assert_eq!(ctx.value("func").unwrap(), Value::from(100));
+    }
 }
 
 ///
