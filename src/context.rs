@@ -65,6 +65,17 @@ impl Context {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_context_value_none() {
+        let ctx = Context::new();
+        assert_eq!(ctx.value("missing").unwrap(), Value::None);
+    }
+}
+
 ///
 ///```rust
 /// use expression_engine::create_context;
