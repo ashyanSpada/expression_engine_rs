@@ -57,7 +57,8 @@ impl InfixOpManager {
         use InfixOpType::*;
         self.register("=", 20, SETTER, RIGHT, Arc::new(|_, right| Ok(right)));
 
-        for op in vec!["+=", "-=", "*=", "/=", "%="] {
+        // Iterate over an array literal `[...]` instead of `vec![...]` to avoid heap allocations
+        for op in ["+=", "-=", "*=", "/=", "%="] {
             self.register(
                 op,
                 20,
@@ -88,7 +89,7 @@ impl InfixOpManager {
             );
         }
 
-        for op in vec!["<<=", ">>=", "&=", "^=", "|="] {
+        for op in ["<<=", ">>=", "&=", "^=", "|="] {
             self.register(
                 op,
                 20,
@@ -109,7 +110,7 @@ impl InfixOpManager {
             );
         }
 
-        for (op, precedence) in vec![("||", 40), ("&&", 50)] {
+        for (op, precedence) in [("||", 40), ("&&", 50)] {
             self.register(
                 op,
                 precedence,
@@ -127,7 +128,7 @@ impl InfixOpManager {
             );
         }
 
-        for op in vec!["<", "<=", ">", ">="] {
+        for op in ["<", "<=", ">", ">="] {
             self.register(
                 op,
                 60,
@@ -148,7 +149,7 @@ impl InfixOpManager {
             );
         }
 
-        for op in vec!["==", "!="] {
+        for op in ["==", "!="] {
             self.register(
                 op,
                 60,
@@ -166,7 +167,7 @@ impl InfixOpManager {
             );
         }
 
-        for (op, precedence) in vec![("|", 70), ("^", 80), ("&", 90), ("<<", 100), (">>", 100)] {
+        for (op, precedence) in [("|", 70), ("^", 80), ("&", 90), ("<<", 100), (">>", 100)] {
             self.register(
                 op,
                 precedence,
@@ -187,7 +188,7 @@ impl InfixOpManager {
             );
         }
 
-        for (op, precedence) in vec![("+", 110), ("-", 110), ("*", 120), ("/", 120), ("%", 120)] {
+        for (op, precedence) in [("+", 110), ("-", 110), ("*", 120), ("/", 120), ("%", 120)] {
             self.register(
                 op,
                 precedence,
