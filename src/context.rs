@@ -51,6 +51,7 @@ impl Context {
     }
 
     pub fn value(&self, name: &str) -> Result<Value> {
+        // Lock is acquired and released inside `get` early to avoid contention during execution
         let value = self.get(name);
         match value {
             Some(ContextValue::Variable(v)) => Ok(v),
@@ -98,4 +99,31 @@ macro_rules! create_context {
         $crate::create_context!((&mut ctx) $($tt)*);
         ctx
     }};
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::context::Context;
+    use crate::value::Value;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_context() {
+        let mut ctx = Context::new();
+
+        ctx.set_variable("a", Value::from(10));
+        ctx.set_func("f", Arc::new(|_| Ok(Value::from(20))));
+
+        assert_eq!(ctx.get_variable("a").unwrap(), Value::from(10));
+        assert!(ctx.get_variable("f").is_none());
+        assert!(ctx.get_variable("missing").is_none());
+
+        assert!(ctx.get_func("f").is_some());
+        assert!(ctx.get_func("a").is_none());
+        assert!(ctx.get_func("missing").is_none());
+
+        assert_eq!(ctx.value("a").unwrap(), Value::from(10));
+        assert_eq!(ctx.value("f").unwrap(), Value::from(20));
+        assert_eq!(ctx.value("missing").unwrap(), Value::None);
+    }
 }
