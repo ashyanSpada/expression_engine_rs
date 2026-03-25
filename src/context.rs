@@ -33,7 +33,7 @@ impl Context {
     pub fn get_func(&self, name: &str) -> Option<Arc<InnerFunction>> {
         let value = self.get(name)?;
         match value {
-            ContextValue::Function(func) => Some(func.clone()),
+            ContextValue::Function(func) => Some(func),
             ContextValue::Variable(_) => None,
         }
     }
@@ -41,26 +41,22 @@ impl Context {
     pub fn get_variable(&self, name: &str) -> Option<Value> {
         let value = self.get(name)?;
         match value {
-            ContextValue::Variable(v) => Some(v.clone()),
+            ContextValue::Variable(v) => Some(v),
             ContextValue::Function(_) => None,
         }
     }
 
     pub fn get(&self, name: &str) -> Option<ContextValue> {
-        let binding = self.0.lock().unwrap();
-        let value = binding.get(name)?;
-        Some(value.clone())
+        self.0.lock().unwrap().get(name).cloned()
     }
 
     pub fn value(&self, name: &str) -> Result<Value> {
-        let binding = self.0.lock().unwrap();
-        if binding.get(name).is_none() {
-            return Ok(Value::None);
-        }
-        let value = binding.get(name).unwrap();
+        // Lock is acquired and released inside `get` early to avoid contention during execution
+        let value = self.get(name);
         match value {
-            ContextValue::Variable(v) => Ok(v.clone()),
-            ContextValue::Function(func) => func(Vec::new()),
+            Some(ContextValue::Variable(v)) => Ok(v),
+            Some(ContextValue::Function(func)) => func(Vec::new()),
+            None => Ok(Value::None),
         }
     }
 }
@@ -103,4 +99,31 @@ macro_rules! create_context {
         $crate::create_context!((&mut ctx) $($tt)*);
         ctx
     }};
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::context::Context;
+    use crate::value::Value;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_context() {
+        let mut ctx = Context::new();
+
+        ctx.set_variable("a", Value::from(10));
+        ctx.set_func("f", Arc::new(|_| Ok(Value::from(20))));
+
+        assert_eq!(ctx.get_variable("a").unwrap(), Value::from(10));
+        assert!(ctx.get_variable("f").is_none());
+        assert!(ctx.get_variable("missing").is_none());
+
+        assert!(ctx.get_func("f").is_some());
+        assert!(ctx.get_func("a").is_none());
+        assert!(ctx.get_func("missing").is_none());
+
+        assert_eq!(ctx.value("a").unwrap(), Value::from(10));
+        assert_eq!(ctx.value("f").unwrap(), Value::from(20));
+        assert_eq!(ctx.value("missing").unwrap(), Value::None);
+    }
 }
