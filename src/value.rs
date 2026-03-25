@@ -96,20 +96,20 @@ impl Value {
 
     pub fn integer(self) -> Result<i64> {
         match self {
-            Self::Number(val) => val
-                .to_string()
-                .parse()
-                .map_or(Err(Error::InvalidInteger), |num| Ok(num)),
+            Self::Number(val) => {
+                if val.scale() == 0 {
+                    val.to_i64().ok_or(Error::InvalidInteger)
+                } else {
+                    Err(Error::InvalidInteger)
+                }
+            }
             _ => Err(Error::InvalidInteger),
         }
     }
 
     pub fn float(self) -> Result<f64> {
         match self {
-            Self::Number(val) => val
-                .to_string()
-                .parse()
-                .map_or(Err(Error::InvalidFloat), |num| Ok(num)),
+            Self::Number(val) => val.to_f64().ok_or(Error::InvalidFloat),
             _ => Err(Error::InvalidFloat),
         }
     }
@@ -148,3 +148,35 @@ impl_value_from_for_number!(
     [f64, from_f64],
     [f32, from_f32]
 );
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_value_integer() {
+        assert_eq!(Value::from(10).integer().unwrap(), 10);
+        assert_eq!(Value::from(-5).integer().unwrap(), -5);
+
+        // Test that integer() fails when scale is not 0
+        let dec = Decimal::from_str("10.5").unwrap();
+        assert!(Value::Number(dec).integer().is_err());
+
+        // Even if the value represents an integer, but has a non-zero scale, it should fail to parse
+        // according to strict behavior checking `val.scale() == 0`
+        let dec_with_scale = Decimal::from_str("10.0").unwrap();
+        assert!(Value::Number(dec_with_scale).integer().is_err());
+    }
+
+    #[test]
+    fn test_value_float() {
+        assert_eq!(Value::from(10).float().unwrap(), 10.0);
+        assert_eq!(Value::from(-5).float().unwrap(), -5.0);
+
+        let dec = Decimal::from_str("10.5").unwrap();
+        assert_eq!(Value::Number(dec).float().unwrap(), 10.5);
+
+        let dec_with_scale = Decimal::from_str("10.0").unwrap();
+        assert_eq!(Value::Number(dec_with_scale).float().unwrap(), 10.0);
+    }
+}
