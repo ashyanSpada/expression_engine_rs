@@ -15,27 +15,27 @@ pub enum Value {
 
 #[cfg(not(tarpaulin_include))]
 impl fmt::Display for Value {
+    // ⚡ Bolt: Optimize Display by writing directly to formatter instead of allocating Strings
+    // Expected impact: Eliminates heap allocations and redundant .clone() calls during display formatting,
+    // reducing time per format and GC/allocator pressure.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::String(val) => write!(f, "value string: {}", val.clone()),
-            Self::Number(val) => write!(f, "value number: {}", val.clone()),
-            Self::Bool(val) => write!(f, "value bool: {}", val.clone()),
+            Self::String(val) => write!(f, "value string: {}", val),
+            Self::Number(val) => write!(f, "value number: {}", val),
+            Self::Bool(val) => write!(f, "value bool: {}", val),
             Self::List(values) => {
-                let mut s = String::from("[");
+                write!(f, "value list: [")?;
                 for value in values {
-                    s.push_str(format!("{},", value.clone()).as_str());
+                    write!(f, "{},", value)?;
                 }
-                s.push_str("]");
-                write!(f, "value list: {}", s)
+                write!(f, "]")
             }
             Self::Map(m) => {
-                let mut s = String::from("{");
+                write!(f, "value map: {{")?;
                 for (k, v) in m {
-                    s.push_str(format!("key: {},", k.clone()).as_str());
-                    s.push_str(format!("value: {}; ", v.clone()).as_str());
+                    write!(f, "key: {},value: {}; ", k, v)?;
                 }
-                s.push_str("}");
-                write!(f, "value map: {}", s)
+                write!(f, "}}")
             }
             Self::None => write!(f, "None"),
         }
