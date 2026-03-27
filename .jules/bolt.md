@@ -9,3 +9,7 @@
 ## 2024-05-26 - Optimize decimal conversion in Value
 **Learning:** `rust_decimal::Decimal` allows efficient and direct conversion to basic types like `i64` and `f64` via `to_i64` and `to_f64` using the `rust_decimal::prelude::ToPrimitive` trait. Converting to string and then parsing `val.to_string().parse()` is an anti-pattern as it incurs heap allocation overhead, which is bad for performance. When doing integer conversions from `Decimal`, it's critical to check `val.scale() == 0` first to maintain behavioral parity with string parsing (which would reject floats).
 **Action:** Always favor direct conversion traits like `rust_decimal::prelude::ToPrimitive` methods over stringification when converting `Decimal` values to native numeric types. Keep edge cases like `scale()` properties in mind when changing conversion methods.
+
+## 2024-05-27 - Avoid intermediate strings and clones in std::fmt::Display
+**Learning:** For `std::fmt::Display` implementations involving collections (like Lists or Maps), building an intermediate `String` via `format!()` and `push_str()` before writing it causes unnecessary heap allocations and redundant data cloning.
+**Action:** Write directly to the `std::fmt::Formatter` using `write!(f, ...)` to stream characters without allocating extra memory, and remove unnecessary `.clone()` calls during formatting.
