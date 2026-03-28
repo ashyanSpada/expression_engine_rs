@@ -21,21 +21,20 @@ impl fmt::Display for Value {
             Self::Number(val) => write!(f, "value number: {}", val.clone()),
             Self::Bool(val) => write!(f, "value bool: {}", val.clone()),
             Self::List(values) => {
-                let mut s = String::from("[");
+                // ⚡ Bolt: Write directly to the Formatter to prevent N+1 heap allocations and deep copies.
+                write!(f, "value list: [")?;
                 for value in values {
-                    s.push_str(format!("{},", value.clone()).as_str());
+                    write!(f, "{},", value)?;
                 }
-                s.push_str("]");
-                write!(f, "value list: {}", s)
+                write!(f, "]")
             }
             Self::Map(m) => {
-                let mut s = String::from("{");
+                // ⚡ Bolt: Avoid intermediate String allocations and push_str() by writing directly to the output stream.
+                write!(f, "value map: {{")?;
                 for (k, v) in m {
-                    s.push_str(format!("key: {},", k.clone()).as_str());
-                    s.push_str(format!("value: {}; ", v.clone()).as_str());
+                    write!(f, "key: {},value: {}; ", k, v)?;
                 }
-                s.push_str("}");
-                write!(f, "value map: {}", s)
+                write!(f, "}}")
             }
             Self::None => write!(f, "None"),
         }
