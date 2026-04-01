@@ -52,6 +52,7 @@ impl From<&str> for DelimTokenType {
 }
 
 impl DelimTokenType {
+    #[cfg(not(tarpaulin_include))]
     pub fn as_str(&self) -> &'static str {
         use DelimTokenType::*;
         match self {
