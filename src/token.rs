@@ -225,6 +225,18 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
+    #[case(DelimTokenType::OpenParen, "(")]
+    #[case(DelimTokenType::CloseParen, ")")]
+    #[case(DelimTokenType::OpenBracket, "[")]
+    #[case(DelimTokenType::CloseBracket, "]")]
+    #[case(DelimTokenType::OpenBrace, "{")]
+    #[case(DelimTokenType::CloseBrace, "}")]
+    #[case(DelimTokenType::Unknown, "??")]
+    fn test_delim_token_type_as_str(#[case] input: DelimTokenType, #[case] output: &str) {
+        assert_eq!(input.as_str(), output)
+    }
+
+    #[rstest]
     #[case("(", DelimTokenType::OpenParen)]
     #[case(")", DelimTokenType::CloseParen)]
     #[case("[", DelimTokenType::OpenBracket)]
