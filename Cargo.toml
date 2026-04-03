@@ -32,3 +32,7 @@ harness = false
 [[bench]]
 name = "display_expression"
 harness = false
+
+[[bench]]
+name = "value_display"
+harness = false
