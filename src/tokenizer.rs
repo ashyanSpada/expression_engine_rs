@@ -140,12 +140,13 @@ impl<'a> Tokenizer<'a> {
         self.clone().next()
     }
 
+    // ⚡ Bolt Optimization: Replace `bracket.string()` with `bracket.as_str()` to avoid `String` allocation.
     pub fn expect(&mut self, op: &str) -> Result<()> {
         let token = self.cur_token.clone();
         self.next()?;
         match token {
             Token::Delim(bracket, _) => {
-                if bracket.string() == op {
+                if bracket.as_str() == op {
                     return Ok(());
                 }
             }
@@ -408,5 +409,29 @@ mod tests {
         let mut tokenizer = Tokenizer::new(input);
         let ans = tokenizer.next();
         assert!(ans.is_err())
+    }
+
+    #[test]
+    fn test_expect() {
+        init();
+        // Test matched bracket
+        let mut tokenizer = Tokenizer::new("(");
+        tokenizer.next().unwrap();
+        assert!(tokenizer.expect("(").is_ok());
+
+        // Test matched operator
+        let mut tokenizer = Tokenizer::new("+=");
+        tokenizer.next().unwrap();
+        assert!(tokenizer.expect("+=").is_ok());
+
+        // Test matched comma
+        let mut tokenizer = Tokenizer::new(",");
+        tokenizer.next().unwrap();
+        assert!(tokenizer.expect(",").is_ok());
+
+        // Test invalid token type
+        let mut tokenizer = Tokenizer::new("123");
+        tokenizer.next().unwrap();
+        assert!(tokenizer.expect("(").is_err());
     }
 }

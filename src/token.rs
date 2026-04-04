@@ -52,17 +52,22 @@ impl From<&str> for DelimTokenType {
 }
 
 impl DelimTokenType {
-    pub fn string(&self) -> String {
+    // ⚡ Bolt Optimization: Use `&'static str` to prevent heap allocation during string comparison.
+    pub fn as_str(&self) -> &'static str {
         use DelimTokenType::*;
         match self {
-            OpenParen => "(".to_string(),
-            CloseParen => ")".to_string(),
-            OpenBracket => "[".to_string(),
-            CloseBracket => "]".to_string(),
-            OpenBrace => "{".to_string(),
-            CloseBrace => "}".to_string(),
-            Unknown => "??".to_string(),
+            OpenParen => "(",
+            CloseParen => ")",
+            OpenBracket => "[",
+            CloseBracket => "]",
+            OpenBrace => "{",
+            CloseBrace => "}",
+            Unknown => "??",
         }
+    }
+
+    pub fn string(&self) -> String {
+        self.as_str().to_string()
     }
 }
 
@@ -83,10 +88,11 @@ pub enum Token<'input> {
     EOF,
 }
 
+// ⚡ Bolt Optimization: Replace `op.string()` with `op.as_str()` to avoid `String` allocation on check
 pub fn check_op(token: Token, expected: &str) -> bool {
     match token {
         Token::Delim(op, _) => {
-            if op.string() == expected {
+            if op.as_str() == expected {
                 return true;
             }
         }
@@ -187,7 +193,7 @@ impl<'input> Token<'input> {
             Reference(val, _) => val.to_string(),
             Function(val, _) => val.to_string(),
             Semicolon(val, _) => val.to_string(),
-            Delim(ty, _) => ty.string(),
+            Delim(ty, _) => ty.as_str().to_string(),
             EOF => "EOF".to_string(),
         }
     }
@@ -213,7 +219,8 @@ impl<'input> fmt::Display for Token<'input> {
             Function(val, span) => write!(f, "Function Token: {}, {}", val, span),
             String(val, span) => write!(f, "String Token: {}, {}", val, span),
             Semicolon(val, span) => write!(f, "Semicolon Token: {}, {}", val, span),
-            Delim(ty, span) => write!(f, "Delim Token: {}, {}", ty.string(), span),
+            // ⚡ Bolt Optimization: Avoid intermediate allocation by using `as_str()` directly
+            Delim(ty, span) => write!(f, "Delim Token: {}, {}", ty.as_str(), span),
             EOF => write!(f, "EOF"),
         }
     }
@@ -270,5 +277,44 @@ mod tests {
     #[case(Token::Bool(false, Span(0, 0)), false)]
     fn test_is_open_bracket(#[case] input: Token, #[case] output: bool) {
         assert_eq!(input.is_open_bracket(), output)
+    }
+
+    #[test]
+    fn test_delim_token_type_as_str() {
+        assert_eq!(DelimTokenType::OpenParen.as_str(), "(");
+        assert_eq!(DelimTokenType::CloseParen.as_str(), ")");
+        assert_eq!(DelimTokenType::OpenBracket.as_str(), "[");
+        assert_eq!(DelimTokenType::CloseBracket.as_str(), "]");
+        assert_eq!(DelimTokenType::OpenBrace.as_str(), "{");
+        assert_eq!(DelimTokenType::CloseBrace.as_str(), "}");
+        assert_eq!(DelimTokenType::Unknown.as_str(), "??");
+
+        assert_eq!(DelimTokenType::OpenParen.string(), "(");
+        assert_eq!(DelimTokenType::Unknown.string(), "??");
+    }
+
+    #[test]
+    fn test_check_op() {
+        use super::check_op;
+
+        // Test matching delim
+        assert!(check_op(
+            Token::Delim(DelimTokenType::OpenParen, Span(0, 0)),
+            "("
+        ));
+        // Test non-matching delim
+        assert!(!check_op(
+            Token::Delim(DelimTokenType::OpenParen, Span(0, 0)),
+            ")"
+        ));
+
+        // Test matching operator
+        assert!(check_op(Token::Operator("+=", Span(0, 0)), "+="));
+        // Test non-matching operator
+        assert!(!check_op(Token::Operator("+=", Span(0, 0)), "-="));
+
+        // Test other tokens should return false
+        assert!(!check_op(Token::Bool(true, Span(0, 0)), "("));
+        assert!(!check_op(Token::EOF, "("));
     }
 }
