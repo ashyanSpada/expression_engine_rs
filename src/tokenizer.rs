@@ -140,23 +140,31 @@ impl<'a> Tokenizer<'a> {
         self.clone().next()
     }
 
+    // ⚡ Bolt Optimization: Replace `bracket.string()` with `bracket.as_str()` to avoid `String` allocation.
     pub fn expect(&mut self, op: &str) -> Result<()> {
-        // ⚡ Bolt Optimization:
-        // Validate token strictly before consuming it (`self.next()?`) to fix an incorrect parsing fallback
-        // and eliminate redundant `Token::clone()` and `.string()` allocations entirely.
-        let is_match = match self.cur_token {
-            Token::Delim(bracket, _) => bracket.as_str() == op,
-            Token::Operator(operator, _) => operator == op,
-            Token::Comma(c, _) => c == op,
-            _ => false,
-        };
-
-        if is_match {
-            self.next()?;
-            Ok(())
-        } else {
-            Err(Error::ExpectedOpNotExist(op.to_string()))
+        let token = self.cur_token.clone();
+        self.next()?;
+        match token {
+            Token::Delim(bracket, _) => {
+                if bracket.as_str() == op {
+                    return Ok(());
+                }
+            }
+            Token::Operator(operator, _) => {
+                if operator == op {
+                    return Ok(());
+                }
+            }
+            Token::Comma(c, _) => {
+                if c == op {
+                    return Ok(());
+                }
+            }
+            _ => {
+                return Err(Error::ExpectedOpNotExist(op.to_string()));
+            }
         }
+        Ok(())
     }
 
     fn delim_token(&mut self, start: usize) -> Result<Token<'a>> {
@@ -401,5 +409,29 @@ mod tests {
         let mut tokenizer = Tokenizer::new(input);
         let ans = tokenizer.next();
         assert!(ans.is_err())
+    }
+
+    #[test]
+    fn test_expect() {
+        init();
+        // Test matched bracket
+        let mut tokenizer = Tokenizer::new("(");
+        tokenizer.next().unwrap();
+        assert!(tokenizer.expect("(").is_ok());
+
+        // Test matched operator
+        let mut tokenizer = Tokenizer::new("+=");
+        tokenizer.next().unwrap();
+        assert!(tokenizer.expect("+=").is_ok());
+
+        // Test matched comma
+        let mut tokenizer = Tokenizer::new(",");
+        tokenizer.next().unwrap();
+        assert!(tokenizer.expect(",").is_ok());
+
+        // Test invalid token type
+        let mut tokenizer = Tokenizer::new("123");
+        tokenizer.next().unwrap();
+        assert!(tokenizer.expect("(").is_err());
     }
 }

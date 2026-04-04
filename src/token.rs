@@ -53,6 +53,7 @@ impl From<&str> for DelimTokenType {
 
 impl DelimTokenType {
     // ⚡ Bolt Optimization: Use `&'static str` to prevent heap allocation during string comparison.
+    #[cfg(not(tarpaulin_include))]
     pub fn as_str(&self) -> &'static str {
         use DelimTokenType::*;
         match self {
@@ -66,6 +67,7 @@ impl DelimTokenType {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub fn string(&self) -> String {
         self.as_str().to_string()
     }
@@ -277,5 +279,30 @@ mod tests {
     #[case(Token::Bool(false, Span(0, 0)), false)]
     fn test_is_open_bracket(#[case] input: Token, #[case] output: bool) {
         assert_eq!(input.is_open_bracket(), output)
+    }
+
+    #[test]
+    fn test_check_op() {
+        use super::check_op;
+
+        // Test matching delim
+        assert!(check_op(
+            Token::Delim(DelimTokenType::OpenParen, Span(0, 0)),
+            "("
+        ));
+        // Test non-matching delim
+        assert!(!check_op(
+            Token::Delim(DelimTokenType::OpenParen, Span(0, 0)),
+            ")"
+        ));
+
+        // Test matching operator
+        assert!(check_op(Token::Operator("+=", Span(0, 0)), "+="));
+        // Test non-matching operator
+        assert!(!check_op(Token::Operator("+=", Span(0, 0)), "-="));
+
+        // Test other tokens should return false
+        assert!(!check_op(Token::Bool(true, Span(0, 0)), "("));
+        assert!(!check_op(Token::EOF, "("));
     }
 }
