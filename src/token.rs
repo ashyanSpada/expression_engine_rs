@@ -52,17 +52,21 @@ impl From<&str> for DelimTokenType {
 }
 
 impl DelimTokenType {
-    pub fn string(&self) -> String {
+    pub fn as_str(&self) -> &'static str {
         use DelimTokenType::*;
         match self {
-            OpenParen => "(".to_string(),
-            CloseParen => ")".to_string(),
-            OpenBracket => "[".to_string(),
-            CloseBracket => "]".to_string(),
-            OpenBrace => "{".to_string(),
-            CloseBrace => "}".to_string(),
-            Unknown => "??".to_string(),
+            OpenParen => "(",
+            CloseParen => ")",
+            OpenBracket => "[",
+            CloseBracket => "]",
+            OpenBrace => "{",
+            CloseBrace => "}",
+            Unknown => "??",
         }
+    }
+
+    pub fn string(&self) -> String {
+        self.as_str().to_string()
     }
 }
 
@@ -86,12 +90,22 @@ pub enum Token<'input> {
 pub fn check_op(token: Token, expected: &str) -> bool {
     match token {
         Token::Delim(op, _) => {
-            if op.string() == expected {
+            if op.as_str() == expected {
                 return true;
             }
         }
         Token::Operator(op, _) => {
             if op == expected {
+                return true;
+            }
+        }
+        Token::Comma(c, _) => {
+            if c == expected {
+                return true;
+            }
+        }
+        Token::Semicolon(s, _) => {
+            if s == expected {
                 return true;
             }
         }

@@ -145,7 +145,7 @@ impl<'a> Tokenizer<'a> {
         self.next()?;
         match token {
             Token::Delim(bracket, _) => {
-                if bracket.string() == op {
+                if bracket.as_str() == op {
                     return Ok(());
                 }
             }
