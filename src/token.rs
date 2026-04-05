@@ -65,6 +65,7 @@ impl DelimTokenType {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub fn string(&self) -> String {
         self.as_str().to_string()
     }
@@ -227,7 +228,7 @@ impl<'input> fmt::Display for Token<'input> {
             Function(val, span) => write!(f, "Function Token: {}, {}", val, span),
             String(val, span) => write!(f, "String Token: {}, {}", val, span),
             Semicolon(val, span) => write!(f, "Semicolon Token: {}, {}", val, span),
-            Delim(ty, span) => write!(f, "Delim Token: {}, {}", ty.string(), span),
+            Delim(ty, span) => write!(f, "Delim Token: {}, {}", ty.as_str(), span),
             EOF => write!(f, "EOF"),
         }
     }
@@ -284,5 +285,51 @@ mod tests {
     #[case(Token::Bool(false, Span(0, 0)), false)]
     fn test_is_open_bracket(#[case] input: Token, #[case] output: bool) {
         assert_eq!(input.is_open_bracket(), output)
+    }
+
+    #[rstest]
+    #[case(Token::Delim(DelimTokenType::OpenParen, Span(0, 0)), true)]
+    #[case(Token::Delim(DelimTokenType::CloseParen, Span(0, 0)), false)]
+    fn test_check_op(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(super::check_op(input, "("), output)
+    }
+
+    #[rstest]
+    #[case(Token::Operator("not", Span(0, 0)), true)]
+    #[case(Token::Operator("and", Span(0, 0)), false)]
+    fn test_check_op_operator(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(super::check_op(input, "not"), output)
+    }
+
+    #[rstest]
+    #[case(Token::Comma(",", Span(0, 0)), true)]
+    #[case(Token::Comma(";", Span(0, 0)), false)]
+    fn test_check_op_comma(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(super::check_op(input, ","), output)
+    }
+
+    #[rstest]
+    #[case(Token::Semicolon(";", Span(0, 0)), true)]
+    #[case(Token::Semicolon(",", Span(0, 0)), false)]
+    fn test_check_op_semicolon(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(super::check_op(input, ";"), output)
+    }
+
+    #[test]
+    fn test_is_question_mark() {
+        assert!(Token::Operator("?", Span(0, 0)).is_question_mark());
+        assert!(!Token::Operator(":", Span(0, 0)).is_question_mark());
+    }
+
+    #[test]
+    fn test_is_colon() {
+        assert!(Token::Operator(":", Span(0, 0)).is_colon());
+        assert!(!Token::Operator("?", Span(0, 0)).is_colon());
+    }
+
+    #[test]
+    fn test_is_eof() {
+        assert!(Token::EOF.is_eof());
+        assert!(!Token::Comma(",", Span(0, 0)).is_eof());
     }
 }
