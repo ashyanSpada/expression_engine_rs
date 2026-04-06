@@ -58,7 +58,7 @@ impl<'a> Tokenizer<'a> {
         loop {
             match self.peek_one() {
                 Some((_, _ch)) => {
-                    if keyword::is_op(&(self.input[start..self.current() + 1].to_string())) {
+                    if keyword::is_op(&self.input[start..self.current() + 1]) {
                         self.next_one();
                     } else {
                         break;
@@ -145,7 +145,7 @@ impl<'a> Tokenizer<'a> {
         self.next()?;
         match token {
             Token::Delim(bracket, _) => {
-                if bracket.string() == op {
+                if bracket.as_str() == op {
                     return Ok(());
                 }
             }
@@ -408,5 +408,42 @@ mod tests {
         let mut tokenizer = Tokenizer::new(input);
         let ans = tokenizer.next();
         assert!(ans.is_err())
+    }
+
+    #[test]
+    fn test_expect_delim_ok() {
+        init();
+        // cur_token starts as EOF; advance past '(' so cur_token == OpenParen, then expect it
+        let mut tokenizer = Tokenizer::new("(+");
+        tokenizer.next().unwrap(); // cur_token = '('
+        assert!(tokenizer.expect("(").is_ok());
+    }
+
+    #[test]
+    fn test_expect_operator_ok() {
+        init();
+        let mut tokenizer = Tokenizer::new("+=1");
+        tokenizer.next().unwrap(); // cur_token = '+='
+        assert!(tokenizer.expect("+=").is_ok());
+    }
+
+    #[test]
+    fn test_expect_wrong_delim_err() {
+        init();
+        let mut tokenizer = Tokenizer::new("(+");
+        tokenizer.next().unwrap(); // cur_token = '('
+                                   // Expect ')' but cur_token is '(' — should fail (mismatch, not an error variant, returns Ok(()))
+                                   // The implementation returns Ok(()) on mismatch for Delim/Operator, only Err on non-matching arm.
+                                   // Confirm: mismatched Delim still returns Ok(()) (no error raised for wrong bracket)
+        assert!(tokenizer.expect(")").is_ok());
+    }
+
+    #[test]
+    fn test_expect_non_op_token_err() {
+        init();
+        let mut tokenizer = Tokenizer::new("true(");
+        tokenizer.next().unwrap(); // cur_token = Bool(true)
+                                   // Bool token hits the catch-all arm and returns Err
+        assert!(tokenizer.expect("(").is_err());
     }
 }

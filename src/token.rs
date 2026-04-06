@@ -52,17 +52,21 @@ impl From<&str> for DelimTokenType {
 }
 
 impl DelimTokenType {
-    pub fn string(&self) -> String {
+    pub(crate) fn as_str(&self) -> &'static str {
         use DelimTokenType::*;
         match self {
-            OpenParen => "(".to_string(),
-            CloseParen => ")".to_string(),
-            OpenBracket => "[".to_string(),
-            CloseBracket => "]".to_string(),
-            OpenBrace => "{".to_string(),
-            CloseBrace => "}".to_string(),
-            Unknown => "??".to_string(),
+            OpenParen => "(",
+            CloseParen => ")",
+            OpenBracket => "[",
+            CloseBracket => "]",
+            OpenBrace => "{",
+            CloseBrace => "}",
+            Unknown => "??",
         }
+    }
+
+    pub fn string(&self) -> String {
+        self.as_str().to_string()
     }
 }
 
@@ -85,19 +89,10 @@ pub enum Token<'input> {
 
 pub fn check_op(token: Token, expected: &str) -> bool {
     match token {
-        Token::Delim(op, _) => {
-            if op.string() == expected {
-                return true;
-            }
-        }
-        Token::Operator(op, _) => {
-            if op == expected {
-                return true;
-            }
-        }
-        _ => return false,
+        Token::Delim(op, _) => op.as_str() == expected,
+        Token::Operator(op, _) => op == expected,
+        _ => false,
     }
-    return false;
 }
 
 impl<'input> Token<'input> {
@@ -213,7 +208,7 @@ impl<'input> fmt::Display for Token<'input> {
             Function(val, span) => write!(f, "Function Token: {}, {}", val, span),
             String(val, span) => write!(f, "String Token: {}, {}", val, span),
             Semicolon(val, span) => write!(f, "Semicolon Token: {}, {}", val, span),
-            Delim(ty, span) => write!(f, "Delim Token: {}, {}", ty.string(), span),
+            Delim(ty, span) => write!(f, "Delim Token: {}, {}", ty.as_str(), span),
             EOF => write!(f, "EOF"),
         }
     }
@@ -270,5 +265,56 @@ mod tests {
     #[case(Token::Bool(false, Span(0, 0)), false)]
     fn test_is_open_bracket(#[case] input: Token, #[case] output: bool) {
         assert_eq!(input.is_open_bracket(), output)
+    }
+
+    #[rstest]
+    #[case(DelimTokenType::OpenParen, "(")]
+    #[case(DelimTokenType::CloseParen, ")")]
+    #[case(DelimTokenType::OpenBracket, "[")]
+    #[case(DelimTokenType::CloseBracket, "]")]
+    #[case(DelimTokenType::OpenBrace, "{")]
+    #[case(DelimTokenType::CloseBrace, "}")]
+    #[case(DelimTokenType::Unknown, "??")]
+    fn test_delim_token_type_as_str(#[case] input: DelimTokenType, #[case] expected: &str) {
+        assert_eq!(input.as_str(), expected);
+        // string() must remain consistent with as_str()
+        assert_eq!(input.string(), expected);
+    }
+
+    #[rstest]
+    #[case(Token::Delim(DelimTokenType::OpenParen, Span(0, 1)), "(", true)]
+    #[case(Token::Delim(DelimTokenType::CloseBracket, Span(0, 1)), "]", true)]
+    #[case(Token::Delim(DelimTokenType::OpenBrace, Span(0, 1)), ")", false)]
+    #[case(Token::Operator("+", Span(0, 1)), "+", true)]
+    #[case(Token::Operator("!=", Span(0, 2)), "!=", true)]
+    #[case(Token::Operator("+", Span(0, 1)), "-", false)]
+    #[case(Token::Bool(true, Span(0, 4)), "true", false)]
+    #[case(Token::EOF, "(", false)]
+    fn test_check_op(#[case] token: Token, #[case] expected: &str, #[case] result: bool) {
+        assert_eq!(super::check_op(token, expected), result);
+    }
+
+    #[rstest]
+    #[case(Token::Delim(DelimTokenType::CloseParen, Span(0, 0)), true)]
+    #[case(Token::Delim(DelimTokenType::OpenParen, Span(0, 0)), false)]
+    #[case(Token::Bool(false, Span(0, 0)), false)]
+    fn test_is_close_paren(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(input.is_close_paren(), output)
+    }
+
+    #[rstest]
+    #[case(Token::Delim(DelimTokenType::CloseBracket, Span(0, 0)), true)]
+    #[case(Token::Delim(DelimTokenType::OpenBracket, Span(0, 0)), false)]
+    #[case(Token::Bool(false, Span(0, 0)), false)]
+    fn test_is_close_bracket(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(input.is_close_bracket(), output)
+    }
+
+    #[rstest]
+    #[case(Token::Delim(DelimTokenType::CloseBrace, Span(0, 0)), true)]
+    #[case(Token::Delim(DelimTokenType::OpenBrace, Span(0, 0)), false)]
+    #[case(Token::Bool(false, Span(0, 0)), false)]
+    fn test_is_close_brace(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(input.is_close_brace(), output)
     }
 }
