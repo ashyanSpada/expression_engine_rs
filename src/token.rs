@@ -52,7 +52,7 @@ impl From<&str> for DelimTokenType {
 }
 
 impl DelimTokenType {
-    pub fn as_str(&self) -> &'static str {
+    pub(crate) fn as_str(&self) -> &'static str {
         use DelimTokenType::*;
         match self {
             OpenParen => "(",
