@@ -58,7 +58,7 @@ impl<'a> Tokenizer<'a> {
         loop {
             match self.peek_one() {
                 Some((_, _ch)) => {
-                    if keyword::is_op(&(self.input[start..self.current() + 1].to_string())) {
+                    if keyword::is_op(&self.input[start..self.current() + 1]) {
                         self.next_one();
                     } else {
                         break;
@@ -145,7 +145,7 @@ impl<'a> Tokenizer<'a> {
         self.next()?;
         match token {
             Token::Delim(bracket, _) => {
-                if bracket.string() == op {
+                if bracket.as_str() == op {
                     return Ok(());
                 }
             }
