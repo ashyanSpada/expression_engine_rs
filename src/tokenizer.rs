@@ -432,9 +432,9 @@ mod tests {
         init();
         let mut tokenizer = Tokenizer::new("(+");
         tokenizer.next().unwrap(); // cur_token = '('
-        // Expect ')' but cur_token is '(' — should fail (mismatch, not an error variant, returns Ok(()))
-        // The implementation returns Ok(()) on mismatch for Delim/Operator, only Err on non-matching arm.
-        // Confirm: mismatched Delim still returns Ok(()) (no error raised for wrong bracket)
+                                   // Expect ')' but cur_token is '(' — should fail (mismatch, not an error variant, returns Ok(()))
+                                   // The implementation returns Ok(()) on mismatch for Delim/Operator, only Err on non-matching arm.
+                                   // Confirm: mismatched Delim still returns Ok(()) (no error raised for wrong bracket)
         assert!(tokenizer.expect(")").is_ok());
     }
 
@@ -443,7 +443,7 @@ mod tests {
         init();
         let mut tokenizer = Tokenizer::new("true(");
         tokenizer.next().unwrap(); // cur_token = Bool(true)
-        // Bool token hits the catch-all arm and returns Err
+                                   // Bool token hits the catch-all arm and returns Err
         assert!(tokenizer.expect("(").is_err());
     }
 }

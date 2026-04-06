@@ -180,7 +180,10 @@ mod tests {
 
     #[test]
     fn test_value_display_string() {
-        assert_eq!(format!("{}", Value::String("hello".into())), "value string: hello");
+        assert_eq!(
+            format!("{}", Value::String("hello".into())),
+            "value string: hello"
+        );
     }
 
     #[test]
@@ -202,7 +205,10 @@ mod tests {
     #[test]
     fn test_value_display_list() {
         let list = Value::List(vec![Value::from(1i32), Value::from(2i32)]);
-        assert_eq!(format!("{}", list), "value list: [value number: 1,value number: 2,]");
+        assert_eq!(
+            format!("{}", list),
+            "value list: [value number: 1,value number: 2,]"
+        );
     }
 
     #[test]
