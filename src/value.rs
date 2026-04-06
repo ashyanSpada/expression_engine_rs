@@ -177,4 +177,50 @@ mod tests {
         let dec_with_scale = Decimal::from_str("10.0").unwrap();
         assert_eq!(Value::Number(dec_with_scale).float().unwrap(), 10.0);
     }
+
+    #[test]
+    fn test_value_display_string() {
+        assert_eq!(format!("{}", Value::String("hello".into())), "value string: hello");
+    }
+
+    #[test]
+    fn test_value_display_number() {
+        assert_eq!(format!("{}", Value::from(42i32)), "value number: 42");
+    }
+
+    #[test]
+    fn test_value_display_bool() {
+        assert_eq!(format!("{}", Value::Bool(true)), "value bool: true");
+        assert_eq!(format!("{}", Value::Bool(false)), "value bool: false");
+    }
+
+    #[test]
+    fn test_value_display_none() {
+        assert_eq!(format!("{}", Value::None), "None");
+    }
+
+    #[test]
+    fn test_value_display_list() {
+        let list = Value::List(vec![Value::from(1i32), Value::from(2i32)]);
+        assert_eq!(format!("{}", list), "value list: [value number: 1,value number: 2,]");
+    }
+
+    #[test]
+    fn test_value_display_list_empty() {
+        assert_eq!(format!("{}", Value::List(vec![])), "value list: []");
+    }
+
+    #[test]
+    fn test_value_display_map() {
+        let map = Value::Map(vec![(Value::String("k".into()), Value::from(1i32))]);
+        assert_eq!(
+            format!("{}", map),
+            "value map: {key: value string: k,value: value number: 1; }"
+        );
+    }
+
+    #[test]
+    fn test_value_display_map_empty() {
+        assert_eq!(format!("{}", Value::Map(vec![])), "value map: {}");
+    }
 }
