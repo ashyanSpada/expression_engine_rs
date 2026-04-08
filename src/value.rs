@@ -17,25 +17,23 @@ pub enum Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::String(val) => write!(f, "value string: {}", val.clone()),
-            Self::Number(val) => write!(f, "value number: {}", val.clone()),
-            Self::Bool(val) => write!(f, "value bool: {}", val.clone()),
+            Self::String(val) => write!(f, "value string: {}", val),
+            Self::Number(val) => write!(f, "value number: {}", val),
+            Self::Bool(val) => write!(f, "value bool: {}", val),
             Self::List(values) => {
-                let mut s = String::from("[");
+                write!(f, "value list: [")?;
                 for value in values {
-                    s.push_str(format!("{},", value.clone()).as_str());
+                    write!(f, "{},", value)?;
                 }
-                s.push_str("]");
-                write!(f, "value list: {}", s)
+                write!(f, "]")
             }
             Self::Map(m) => {
-                let mut s = String::from("{");
+                write!(f, "value map: {{")?;
                 for (k, v) in m {
-                    s.push_str(format!("key: {},", k.clone()).as_str());
-                    s.push_str(format!("value: {}; ", v.clone()).as_str());
+                    write!(f, "key: {},", k)?;
+                    write!(f, "value: {}; ", v)?;
                 }
-                s.push_str("}");
-                write!(f, "value map: {}", s)
+                write!(f, "}}")
             }
             Self::None => write!(f, "None"),
         }
@@ -178,5 +176,57 @@ mod tests {
 
         let dec_with_scale = Decimal::from_str("10.0").unwrap();
         assert_eq!(Value::Number(dec_with_scale).float().unwrap(), 10.0);
+    }
+
+    #[test]
+    fn test_value_display_string() {
+        assert_eq!(
+            format!("{}", Value::String("hello".into())),
+            "value string: hello"
+        );
+    }
+
+    #[test]
+    fn test_value_display_number() {
+        assert_eq!(format!("{}", Value::from(42i32)), "value number: 42");
+    }
+
+    #[test]
+    fn test_value_display_bool() {
+        assert_eq!(format!("{}", Value::Bool(true)), "value bool: true");
+        assert_eq!(format!("{}", Value::Bool(false)), "value bool: false");
+    }
+
+    #[test]
+    fn test_value_display_none() {
+        assert_eq!(format!("{}", Value::None), "None");
+    }
+
+    #[test]
+    fn test_value_display_list() {
+        let list = Value::List(vec![Value::from(1i32), Value::from(2i32)]);
+        assert_eq!(
+            format!("{}", list),
+            "value list: [value number: 1,value number: 2,]"
+        );
+    }
+
+    #[test]
+    fn test_value_display_list_empty() {
+        assert_eq!(format!("{}", Value::List(vec![])), "value list: []");
+    }
+
+    #[test]
+    fn test_value_display_map() {
+        let map = Value::Map(vec![(Value::String("k".into()), Value::from(1i32))]);
+        assert_eq!(
+            format!("{}", map),
+            "value map: {key: value string: k,value: value number: 1; }"
+        );
+    }
+
+    #[test]
+    fn test_value_display_map_empty() {
+        assert_eq!(format!("{}", Value::Map(vec![])), "value map: {}");
     }
 }
