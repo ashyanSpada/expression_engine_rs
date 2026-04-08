@@ -118,6 +118,13 @@ impl Value {
             _ => Err(Error::ShouldBeList()),
         }
     }
+
+    pub fn map(self) -> Result<Vec<(Value, Value)>> {
+        match self {
+            Self::Map(m) => Ok(m),
+            _ => Err(Error::ShouldBeMap()),
+        }
+    }
 }
 
 macro_rules! impl_value_from_for_number {
@@ -228,5 +235,24 @@ mod tests {
     #[test]
     fn test_value_display_map_empty() {
         assert_eq!(format!("{}", Value::Map(vec![])), "value map: {}");
+    }
+
+    #[test]
+    fn test_value_map() {
+        let pairs = vec![
+            (Value::String("key".into()), Value::from(1i32)),
+            (Value::String("other".into()), Value::from(2i32)),
+        ];
+        let v = Value::Map(pairs.clone());
+        assert_eq!(v.map().unwrap(), pairs);
+    }
+
+    #[test]
+    fn test_value_map_err() {
+        assert!(Value::from(42i32).map().is_err());
+        assert!(Value::from(true).map().is_err());
+        assert!(Value::from("str").map().is_err());
+        assert!(Value::List(vec![]).map().is_err());
+        assert!(Value::None.map().is_err());
     }
 }

@@ -256,6 +256,33 @@ impl InfixOpManager {
                 Ok(false.into())
             }),
         );
+
+        self.register(
+            "notIn",
+            200,
+            InfixOpType::CALC,
+            InfixOpAssociativity::LEFT,
+            Arc::new(|left, right| {
+                let list = right.list()?;
+                for item in list {
+                    if item == left {
+                        return Ok(false.into());
+                    }
+                }
+                Ok(true.into())
+            }),
+        );
+
+        self.register(
+            "contains",
+            200,
+            InfixOpType::CALC,
+            InfixOpAssociativity::LEFT,
+            Arc::new(|left, right| {
+                let (a, b) = (left.string()?, right.string()?);
+                Ok(Value::from(a.contains(b.as_str())))
+            }),
+        );
     }
 
     pub fn register(
@@ -470,13 +497,35 @@ impl PostfixOpManager {
 }
 
 #[cfg(test)]
-mod tetst {
+#[cfg(test)]
+mod tests {
     use crate::operator::InfixOpManager;
+    use crate::{create_context, execute, Value};
     #[test]
     fn test_operators() {
         let result = InfixOpManager::new().operators();
         for (op, precedence) in result {
             println!("|{}| {}||", op, precedence)
         }
+    }
+
+    fn run(expr: &str) -> Value {
+        execute(expr, create_context!()).expect(expr)
+    }
+
+    #[test]
+    fn test_contains_op() {
+        assert_eq!(run("'hello world' contains 'world'"), Value::from(true));
+        assert_eq!(run("'hello world' contains 'xyz'"), Value::from(false));
+        assert_eq!(run("'abc' contains 'abc'"), Value::from(true));
+        assert_eq!(run("'abc' contains ''"), Value::from(true));
+    }
+
+    #[test]
+    fn test_not_in_op() {
+        assert_eq!(run("1 notIn [2, 3, 4]"), Value::from(true));
+        assert_eq!(run("2 notIn [1, 2, 3]"), Value::from(false));
+        assert_eq!(run("'x' notIn ['a', 'b', 'c']"), Value::from(true));
+        assert_eq!(run("'a' notIn ['a', 'b', 'c']"), Value::from(false));
     }
 }
