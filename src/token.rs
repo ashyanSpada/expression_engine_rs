@@ -91,6 +91,8 @@ pub fn check_op(token: Token, expected: &str) -> bool {
     match token {
         Token::Delim(op, _) => op.as_str() == expected,
         Token::Operator(op, _) => op == expected,
+        Token::Comma(c, _) => c == expected,
+        Token::Semicolon(s, _) => s == expected,
         _ => false,
     }
 }
@@ -295,6 +297,20 @@ mod tests {
     }
 
     #[rstest]
+    #[case(Token::Comma(",", Span(0, 0)), true)]
+    #[case(Token::Comma(";", Span(0, 0)), false)]
+    fn test_check_op_comma(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(super::check_op(input, ","), output)
+    }
+
+    #[rstest]
+    #[case(Token::Semicolon(";", Span(0, 0)), true)]
+    #[case(Token::Semicolon(",", Span(0, 0)), false)]
+    fn test_check_op_semicolon(#[case] input: Token, #[case] output: bool) {
+        assert_eq!(super::check_op(input, ";"), output)
+    }
+
+    #[rstest]
     #[case(Token::Delim(DelimTokenType::CloseParen, Span(0, 0)), true)]
     #[case(Token::Delim(DelimTokenType::OpenParen, Span(0, 0)), false)]
     #[case(Token::Bool(false, Span(0, 0)), false)]
@@ -316,5 +332,23 @@ mod tests {
     #[case(Token::Bool(false, Span(0, 0)), false)]
     fn test_is_close_brace(#[case] input: Token, #[case] output: bool) {
         assert_eq!(input.is_close_brace(), output)
+    }
+
+    #[test]
+    fn test_is_question_mark() {
+        assert!(Token::Operator("?", Span(0, 0)).is_question_mark());
+        assert!(!Token::Operator(":", Span(0, 0)).is_question_mark());
+    }
+
+    #[test]
+    fn test_is_colon() {
+        assert!(Token::Operator(":", Span(0, 0)).is_colon());
+        assert!(!Token::Operator("?", Span(0, 0)).is_colon());
+    }
+
+    #[test]
+    fn test_is_eof() {
+        assert!(Token::EOF.is_eof());
+        assert!(!Token::Comma(",", Span(0, 0)).is_eof());
     }
 }
