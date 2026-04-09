@@ -20,7 +20,7 @@ mod token;
 mod tokenizer;
 #[macro_use]
 mod value;
-mod bytecode;
+pub mod bytecode;
 mod context;
 mod descriptor;
 mod init;
