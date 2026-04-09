@@ -307,7 +307,7 @@ impl<'a> VirtualMachine<'a> {
         if self.stack.is_empty() {
             return Ok(Value::None);
         }
-        Ok(self.stack.pop().unwrap_or(Value::None))
+        Ok(self.stack.pop().unwrap())
     }
 
     fn pop(&mut self) -> Result<Value> {
