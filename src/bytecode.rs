@@ -199,14 +199,17 @@ impl Compiler {
 struct VirtualMachine<'a> {
     program: &'a Program,
     stack: Vec<Value>,
+    stack_top: usize,
     ip: usize,
 }
 
 impl<'a> VirtualMachine<'a> {
     fn new(program: &'a Program) -> Self {
+        let initial_stack_size = program.instructions.len().max(16);
         Self {
             program,
-            stack: Vec::new(),
+            stack: Vec::with_capacity(initial_stack_size),
+            stack_top: 0,
             ip: 0,
         }
     }
@@ -221,10 +224,10 @@ impl<'a> VirtualMachine<'a> {
                         .get(*index)
                         .ok_or_else(Error::UnexpectedToken)?
                         .clone();
-                    self.stack.push(value);
+                    self.push(value);
                 }
                 Instruction::LoadReference(name) => {
-                    self.stack.push(ctx.value(name)?);
+                    self.push(ctx.value(name)?);
                 }
                 Instruction::CallFunction { name, arg_count } => {
                     let mut args = Vec::with_capacity(*arg_count);
@@ -236,17 +239,17 @@ impl<'a> VirtualMachine<'a> {
                         Some(func) => func(args),
                         None => InnerFunctionManager::new().get(name)?(args),
                     }?;
-                    self.stack.push(result);
+                    self.push(result);
                 }
                 Instruction::ApplyPrefix(op) => {
                     let rhs = self.pop()?;
                     let value = PrefixOpManager::new().get(op)?(rhs)?;
-                    self.stack.push(value);
+                    self.push(value);
                 }
                 Instruction::ApplyPostfix(op) => {
                     let lhs = self.pop()?;
                     let value = PostfixOpManager::new().get(op)?(lhs)?;
-                    self.stack.push(value);
+                    self.push(value);
                 }
                 Instruction::ApplyInfix { op, setter_target } => {
                     let rhs = self.pop()?;
@@ -254,13 +257,13 @@ impl<'a> VirtualMachine<'a> {
                     match InfixOpManager::new().get_op_type(op)? {
                         InfixOpType::CALC => {
                             let value = InfixOpManager::new().get_handler(op)?(lhs, rhs)?;
-                            self.stack.push(value);
+                            self.push(value);
                         }
                         InfixOpType::SETTER => {
                             let target = setter_target.as_ref().ok_or(Error::NotReferenceExpr)?;
                             let value = InfixOpManager::new().get_handler(op)?(lhs, rhs)?;
                             ctx.set_variable(target, value);
-                            self.stack.push(Value::None);
+                            self.push(Value::None);
                         }
                     }
                 }
@@ -270,7 +273,7 @@ impl<'a> VirtualMachine<'a> {
                         values.push(self.pop()?);
                     }
                     values.reverse();
-                    self.stack.push(Value::List(values));
+                    self.push(Value::List(values));
                 }
                 Instruction::BuildMap(size) => {
                     let mut values = Vec::with_capacity(*size);
@@ -280,7 +283,7 @@ impl<'a> VirtualMachine<'a> {
                         values.push((key, value));
                     }
                     values.reverse();
-                    self.stack.push(Value::Map(values));
+                    self.push(Value::Map(values));
                 }
                 Instruction::JumpIfFalse(target) => {
                     let condition = self.pop()?;
@@ -304,13 +307,29 @@ impl<'a> VirtualMachine<'a> {
             self.ip += 1;
         }
 
-        if self.stack.is_empty() {
+        if self.stack_top == 0 {
             return Ok(Value::None);
         }
-        Ok(self.stack.pop().unwrap())
+        self.pop()
+    }
+
+    fn push(&mut self, value: Value) {
+        if self.stack_top == self.stack.capacity() {
+            self.stack.reserve(self.stack.capacity().max(16));
+        }
+        if self.stack_top == self.stack.len() {
+            self.stack.push(value);
+        } else {
+            self.stack[self.stack_top] = value;
+        }
+        self.stack_top += 1;
     }
 
     fn pop(&mut self) -> Result<Value> {
+        if self.stack_top == 0 {
+            return Err(Error::UnexpectedToken());
+        }
+        self.stack_top -= 1;
         self.stack.pop().ok_or_else(Error::UnexpectedToken)
     }
 }
