@@ -19,15 +19,16 @@ Method:
 
 | Scenario | AST exec | Bytecode exec | Delta (Bytecode vs AST) |
 | --- | ---: | ---: | ---: |
-| short_expression | 598.27 ns | 608.04 ns | +1.63% |
-| long_expression | 2.5331 µs | 2.5760 µs | +1.69% |
-| function_call | 719.02 ns | 663.25 ns | -7.76% |
-| list_map_mix | 846.15 ns | 715.54 ns | -15.43% |
-| ternary_chain | 490.74 ns | 518.99 ns | +5.76% |
+| short_expression | 597.55 ns | 594.13 ns | -0.57% |
+| long_expression | 2.5106 µs | 2.5698 µs | +2.36% |
+| function_call | 695.27 ns | 655.10 ns | -5.78% |
+| list_map_mix | 864.45 ns | 679.70 ns | -21.37% |
+| ternary_chain | 493.75 ns | 494.15 ns | +0.08% |
 
 ## Takeaways
 
 - At pure execution level, bytecode is **not uniformly slower**.
-- Bytecode is slightly slower in arithmetic-heavy and ternary cases in this run.
+- Bytecode is close to parity for short-expression and ternary-chain cases in this run.
+- Bytecode is slower in the long arithmetic-heavy case in this run.
 - Bytecode is faster in function-call and list/map construction cases in this run.
 - The previous end-to-end slowdown mostly comes from the extra **compile stage per call** in `execute()` (parse + compile + run).
