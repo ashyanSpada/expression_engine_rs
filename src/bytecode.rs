@@ -314,14 +314,11 @@ impl<'a> VirtualMachine<'a> {
     }
 
     fn push(&mut self, value: Value) {
+        debug_assert_eq!(self.stack.len(), self.stack_top);
         if self.stack_top == self.stack.capacity() {
             self.stack.reserve(self.stack.capacity().max(16));
         }
-        if self.stack_top == self.stack.len() {
-            self.stack.push(value);
-        } else {
-            self.stack[self.stack_top] = value;
-        }
+        self.stack.push(value);
         self.stack_top += 1;
     }
 
@@ -330,6 +327,7 @@ impl<'a> VirtualMachine<'a> {
             return Err(Error::UnexpectedToken());
         }
         self.stack_top -= 1;
+        debug_assert_eq!(self.stack.len(), self.stack_top + 1);
         self.stack.pop().ok_or_else(Error::UnexpectedToken)
     }
 }
