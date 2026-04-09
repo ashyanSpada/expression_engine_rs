@@ -6,7 +6,7 @@
 
 ## Introduction
 
-Expression engine is a library written in pure Rust which provides an engine to compile and execute expressions. An expression indicates a string-like sentence that can be executed with some contexts and return a value (mostly, but not limited to, boolean, string and number).
+Expression engine is a library written in pure Rust which parses expressions into AST, compiles them into bytecode, and executes them with context. An expression indicates a string-like sentence that can be executed with some contexts and return a value (mostly, but not limited to, boolean, string and number).
 
 Expression engine aims to provide an engine for users that can execute complex logics using configurations without recompiling. It's a proper alternative as the basis to build business rule engines.
 

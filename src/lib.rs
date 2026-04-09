@@ -1,4 +1,4 @@
-//! Expression engine is a library written in pure Rust which provides an engine to compile and execute expressions.
+//! Expression engine is a library written in pure Rust which parses expressions into AST, compiles them into bytecode, and executes them.
 //! An expression indicates a string-like sentence that can be executed with some contexts and return a value (mostly, but not limited to, boolean, string and number).
 //! Expression engine aims to provide an engine for users that can execute complex logics using configurations without recompiling.
 //! It's a proper alternative as the basis to build business rule engines.
@@ -20,6 +20,7 @@ mod token;
 mod tokenizer;
 #[macro_use]
 mod value;
+mod bytecode;
 mod context;
 mod descriptor;
 mod init;
@@ -41,7 +42,9 @@ use std::sync::Arc;
 /// assert_eq!(ans, Value::from(21))
 /// ```
 pub fn execute(expr: &str, mut ctx: context::Context) -> Result<Value> {
-    parse_expression(expr)?.exec(&mut ctx)
+    let ast = parse_expression(expr)?;
+    let program = bytecode::compile_expression(&ast)?;
+    bytecode::execute_program(&program, &mut ctx)
 }
 
 /// ## Usage
