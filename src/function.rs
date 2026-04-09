@@ -249,11 +249,9 @@ impl InnerFunctionManager {
                     Value::String(s) => Decimal::from_str(&s)
                         .map(Value::Number)
                         .map_err(|_| Error::InvalidNumber(s)),
-                    Value::Bool(b) => Ok(Value::Number(if b {
-                        Decimal::ONE
-                    } else {
-                        Decimal::ZERO
-                    })),
+                    Value::Bool(b) => {
+                        Ok(Value::Number(if b { Decimal::ONE } else { Decimal::ZERO }))
+                    }
                     _ => Err(Error::ParamInvalid()),
                 }
             }),
@@ -431,7 +429,10 @@ mod tests {
 
     #[test]
     fn test_concat() {
-        assert_eq!(run("concat('hello', ' ', 'world')"), Value::from("hello world"));
+        assert_eq!(
+            run("concat('hello', ' ', 'world')"),
+            Value::from("hello world")
+        );
         assert_eq!(run("concat()"), Value::from(""));
         assert_eq!(run("concat('only')"), Value::from("only"));
     }
