@@ -153,8 +153,11 @@ A binary expression contains two operands separated by an operator. All the bina
 | *         | 120        |      |
 | %         | 120        |      |
 | /         | 120        |      |
-| beginWith | 200        |      |
-| endWith   | 200        |      |
+| beginWith | 200        | Returns true if the left string starts with the right string |
+| endWith   | 200        | Returns true if the left string ends with the right string   |
+| in        | 200        | Returns true if the left value is found in the right list    |
+| notIn     | 200        | Returns true if the left value is not found in the right list |
+| contains  | 200        | Returns true if the left string contains the right string    |
 
 ### TernaryExpression
 
@@ -236,3 +239,49 @@ NoneExpression:
 ```
 
 The return value of the NoneExpression is `None`.
+
+## Built-in Functions
+
+The following functions are available without any registration:
+
+### Math Functions
+
+| Function       | Signature          | Description                                         |
+| -------------- | ------------------ | --------------------------------------------------- |
+| min            | min(x, ...)        | Returns the minimum value among all numeric params  |
+| max            | max(x, ...)        | Returns the maximum value among all numeric params  |
+| sum            | sum(x, ...)        | Returns the sum of all numeric params               |
+| mul            | mul(x, ...)        | Returns the product of all numeric params           |
+| avg            | avg(x, ...)        | Returns the average of all numeric params           |
+| abs            | abs(x)             | Returns the absolute value of x                     |
+| floor          | floor(x)           | Rounds x down to the nearest integer                |
+| ceil           | ceil(x)            | Rounds x up to the nearest integer                  |
+| round          | round(x)           | Rounds x to the nearest integer                     |
+| pow            | pow(base, exp)     | Returns base raised to the power exp                |
+| sqrt           | sqrt(x)            | Returns the square root of x                        |
+
+### String Functions
+
+| Function       | Signature          | Description                                         |
+| -------------- | ------------------ | --------------------------------------------------- |
+| len            | len(x)             | Returns the length of a string, list, or map        |
+| upper          | upper(s)           | Converts string s to uppercase                      |
+| lower          | lower(s)           | Converts string s to lowercase                      |
+| trim           | trim(s)            | Removes leading and trailing whitespace from s      |
+| concat         | concat(s, ...)     | Concatenates all string params                      |
+| str            | str(x)             | Converts a value to its string representation       |
+| num            | num(x)             | Converts a string or bool to a number               |
+
+### List Functions
+
+| Function       | Signature          | Description                                         |
+| -------------- | ------------------ | --------------------------------------------------- |
+| first          | first(list)        | Returns the first element of the list               |
+| last           | last(list)         | Returns the last element of the list                |
+
+### Map Functions
+
+| Function       | Signature          | Description                                         |
+| -------------- | ------------------ | --------------------------------------------------- |
+| keys           | keys(map)          | Returns a list of all keys in the map               |
+| values         | values(map)        | Returns a list of all values in the map             |
