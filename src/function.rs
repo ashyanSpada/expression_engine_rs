@@ -16,7 +16,7 @@ impl InnerFunctionManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, Arc<InnerFunction>>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
-        InnerFunctionManager { store: store }
+        InnerFunctionManager { store }
     }
 
     pub fn init(&mut self) {

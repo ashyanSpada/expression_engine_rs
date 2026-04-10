@@ -148,7 +148,7 @@ impl<'a> ExprAST<'a> {
     }
 
     fn exec_unary(&self, op: &'a str, rhs: &ExprAST, ctx: &mut Context) -> Result<Value> {
-        PrefixOpManager::new().get(&op)?(rhs.exec(ctx)?)
+        PrefixOpManager::new().get(op)?(rhs.exec(ctx)?)
     }
 
     fn exec_binary(
@@ -158,15 +158,15 @@ impl<'a> ExprAST<'a> {
         rhs: &ExprAST<'a>,
         ctx: &mut Context,
     ) -> Result<Value> {
-        match InfixOpManager::new().get_op_type(&op)? {
+        match InfixOpManager::new().get_op_type(op)? {
             InfixOpType::CALC => {
-                InfixOpManager::new().get_handler(&op)?(lhs.exec(ctx)?, rhs.exec(ctx)?)
+                InfixOpManager::new().get_handler(op)?(lhs.exec(ctx)?, rhs.exec(ctx)?)
             }
             InfixOpType::SETTER => {
                 let (a, b) = (lhs.exec(ctx)?, rhs.exec(ctx)?);
                 ctx.set_variable(
                     lhs.get_reference_name()?,
-                    InfixOpManager::new().get_handler(&op)?(a, b)?,
+                    InfixOpManager::new().get_handler(op)?(a, b)?,
                 );
                 Ok(Value::None)
             }
@@ -262,7 +262,7 @@ impl<'a> ExprAST<'a> {
                     "false".into()
                 }
             }
-            String(value) => "\"".to_string() + &value + "\"",
+            String(value) => "\"".to_string() + value + "\"",
         }
     }
 
@@ -292,7 +292,7 @@ impl<'a> ExprAST<'a> {
             let (is, precidence) = lhs.get_precidence();
             let mut tmp: String = lhs.expr();
             if is && precidence < InfixOpManager::new().get_precidence(op) {
-                tmp = "(".to_string() + &lhs.expr() + &")".to_string();
+                tmp = "(".to_string() + &lhs.expr() + ")";
             }
             tmp
         };
@@ -300,7 +300,7 @@ impl<'a> ExprAST<'a> {
             let (is, precidence) = rhs.get_precidence();
             let mut tmp = rhs.expr();
             if is && precidence < InfixOpManager::new().get_precidence(op) {
-                tmp = "(".to_string() + &rhs.expr() + &")".to_string();
+                tmp = "(".to_string() + &rhs.expr() + ")";
             }
             tmp
         };
@@ -318,36 +318,36 @@ impl<'a> ExprAST<'a> {
     fn list_expr(&self, params: Vec<ExprAST>) -> String {
         let mut s = String::from("[");
         for i in 0..params.len() {
-            s.push_str(params[i].expr().as_str());
+            s.push_str(&params[i].expr());
             if i < params.len() - 1 {
-                s.push_str(",");
+                s.push(',');
             }
         }
-        s.push_str("]");
+        s.push(']');
         s
     }
 
     fn map_expr(&self, m: Vec<(ExprAST, ExprAST)>) -> String {
         let mut s = String::from("{");
         for i in 0..m.len() {
-            let (key, value) = m[i].clone();
-            s.push_str(key.expr().as_str());
-            s.push_str(":");
-            s.push_str(value.expr().as_str());
+            let (key, value) = &m[i];
+            s.push_str(&key.expr());
+            s.push(':');
+            s.push_str(&value.expr());
             if i < m.len() - 1 {
-                s.push_str(",");
+                s.push(',');
             }
         }
-        s.push_str("}");
+        s.push('}');
         s
     }
 
     fn chain_expr(&self, exprs: Vec<ExprAST>) -> String {
         let mut s = String::new();
         for i in 0..exprs.len() {
-            s.push_str(exprs[i].expr().as_str());
+            s.push_str(&exprs[i].expr());
             if i < exprs.len() - 1 {
-                s.push_str(";");
+                s.push(';');
             }
         }
         s
@@ -373,25 +373,25 @@ impl<'a> ExprAST<'a> {
                 op.clone(),
             ),
             Self::List(values) => DescriptorManager::new().get_list_descriptor()(
-                values.into_iter().map(|v| v.describe()).collect(),
+                values.iter().map(|v| v.describe()).collect(),
             ),
             Self::Map(values) => DescriptorManager::new().get_map_descriptor()(
                 values
-                    .into_iter()
+                    .iter()
                     .map(|value| (value.0.describe(), value.1.describe()))
                     .collect(),
             ),
             Self::Function(name, values) => DescriptorManager::new()
                 .get_function_descriptor(name.to_string())(
                 name.to_string(),
-                values.into_iter().map(|v| v.describe()).collect(),
+                values.iter().map(|v| v.describe()).collect(),
             ),
             Self::Reference(name) => DescriptorManager::new()
                 .get_reference_descriptor(name.to_string())(
                 name.to_string()
             ),
             Self::Stmt(values) => DescriptorManager::new().get_chain_descriptor()(
-                values.into_iter().map(|v| v.describe()).collect(),
+                values.iter().map(|v| v.describe()).collect(),
             ),
             Self::Ternary(condition, lhs, rhs) => {
                 DescriptorManager::new().get_ternary_descriptor()(
@@ -410,23 +410,21 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    fn cur_tok(&self) -> Token {
-        self.tokenizer.cur_token.clone()
+    fn cur_tok(&self) -> Token<'_> {
+        self.tokenizer.cur_token
     }
 
     pub fn new(input: &'a str) -> Result<Self> {
         let mut tokenizer = Tokenizer::new(input);
         tokenizer.next()?;
-        Ok(Self {
-            tokenizer: tokenizer,
-        })
+        Ok(Self { tokenizer })
     }
 
     fn is_eof(&self) -> bool {
         self.cur_tok().is_eof()
     }
 
-    pub fn next(&mut self) -> Result<Token> {
+    pub fn next(&mut self) -> Result<Token<'_>> {
         self.tokenizer.next()
     }
 

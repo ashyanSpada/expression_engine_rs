@@ -56,11 +56,7 @@ impl DescriptorManager {
 
     fn get(&self, key: DescriptorKey) -> Option<Descriptor> {
         let binding = self.store.lock().unwrap();
-        let value = binding.get(&key);
-        if value.is_none() {
-            return None;
-        }
-        Some(value.unwrap().clone())
+        binding.get(&key).cloned()
     }
 
     pub fn set_unary_descriptor(&mut self, op: String, descriptor: Arc<UnaryDescriptor>) {

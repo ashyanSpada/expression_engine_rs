@@ -49,7 +49,7 @@ impl InfixOpManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, InfixOpConfig>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
-        InfixOpManager { store: store }
+        InfixOpManager { store }
     }
 
     pub fn init(&mut self) {
@@ -336,7 +336,7 @@ impl InfixOpManager {
         let mut ans = vec![];
         let binding = self.store.lock().unwrap();
         for (op, InfixOpConfig(precedence, _, _, _)) in binding.iter() {
-            ans.push((op.clone(), precedence.clone()));
+            ans.push((op.clone(), *precedence));
         }
         ans.sort_by(|a, b| a.1.cmp(&b.1));
         ans
@@ -352,7 +352,7 @@ impl PrefixOpManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, Arc<PrefixOpFunc>>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
-        PrefixOpManager { store: store }
+        PrefixOpManager { store }
     }
 
     pub fn init(&mut self) {
@@ -450,7 +450,7 @@ impl PostfixOpManager {
     pub fn new() -> Self {
         static STORE: OnceCell<Mutex<HashMap<String, Arc<PrefixOpFunc>>>> = OnceCell::new();
         let store = STORE.get_or_init(|| Mutex::new(HashMap::new()));
-        Self { store: store }
+        Self { store }
     }
 
     pub fn init(&mut self) {
