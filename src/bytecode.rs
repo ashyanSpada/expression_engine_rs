@@ -334,8 +334,9 @@ impl<'a> VirtualMachine<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::{compile_expression, execute_program, Instruction};
-    use crate::{create_context, parse_expression, Value};
+    use super::{compile_expression, execute_program, Instruction, Program, VirtualMachine};
+    use crate::{create_context, error::Error, parse_expression, Value};
+    use std::sync::Arc;
     fn run_ast(expr: &str) -> crate::Result<Value> {
         let ast = parse_expression(expr)?;
         let mut ctx = create_context!(
@@ -353,6 +354,55 @@ mod tests {
             "f" => Arc::new(|_| Ok(Value::from(3)))
         );
         execute_program(&program, &mut ctx)
+    }
+
+    #[test]
+    fn test_vm_stack_reserves_when_full() {
+        let program = Program {
+            instructions: Vec::new(),
+            constants: vec![Value::Bool(true)],
+        };
+        let mut vm = VirtualMachine::new(&program);
+        let initial_capacity = vm.stack.capacity();
+
+        for _ in 0..(initial_capacity + 5) {
+            vm.push(Value::Bool(true));
+        }
+
+        assert!(vm.stack.capacity() > initial_capacity);
+        assert_eq!(vm.stack_top, initial_capacity + 5);
+    }
+
+    #[test]
+    fn test_program_validate_rejects_oob_jump() {
+        let program = Program {
+            instructions: vec![Instruction::Jump(5)],
+            constants: vec![],
+        };
+
+        assert!(matches!(program.validate(), Err(Error::UnexpectedToken())));
+    }
+
+    #[test]
+    fn test_jump_if_false_with_non_bool_errors() {
+        let program = Program {
+            instructions: vec![Instruction::PushConst(0), Instruction::JumpIfFalse(2)],
+            constants: vec![Value::from("not_bool")],
+        };
+
+        let err = execute_program(&program, &mut create_context!()).unwrap_err();
+        assert!(matches!(err, Error::ShouldBeBool()));
+    }
+
+    #[test]
+    fn test_pop_without_value_errors() {
+        let program = Program {
+            instructions: vec![Instruction::Pop],
+            constants: vec![],
+        };
+
+        let err = execute_program(&program, &mut create_context!()).unwrap_err();
+        assert!(matches!(err, Error::UnexpectedToken()));
     }
 
     #[test]
