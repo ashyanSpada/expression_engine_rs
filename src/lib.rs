@@ -62,13 +62,50 @@ pub fn parse_expression(expr: &str) -> Result<ExprAST> {
     parser::Parser::new(expr)?.parse_stmt()
 }
 
+/// ## Usage
+///
+/// Parse an expression and compile it directly to bytecode without keeping the AST.
+/// This is useful when you want to cache the compiled bytecode and execute it multiple times
+/// with different contexts, avoiding the parsing and compilation overhead.
+///
+/// ``` rust
+/// use expression_engine::{parse_expression_to_bytecode, execute_program, create_context, Value};
+/// let input = "a + b * 2";
+/// let program = parse_expression_to_bytecode(input).unwrap();
+///
+/// // Execute the same bytecode program multiple times with different contexts
+/// let mut ctx1 = create_context!("a" => 10, "b" => 5);
+/// let result1 = execute_program(&program, &mut ctx1).unwrap();
+/// assert_eq!(result1, Value::from(20));
+///
+/// let mut ctx2 = create_context!("a" => 1, "b" => 2);
+/// let result2 = execute_program(&program, &mut ctx2).unwrap();
+/// assert_eq!(result2, Value::from(5));
+/// ```
 pub fn parse_expression_to_bytecode(expr: &str) -> Result<bytecode::Program> {
     init();
     let ast = parser::Parser::new(expr)?.parse_stmt()?;
     bytecode::compile_expression(&ast)
 }
 
+/// ## Usage
+///
+/// Execute a pre-compiled bytecode program with a given context.
+/// This function should be used together with `parse_expression_to_bytecode` when you need
+/// to execute the same expression multiple times with different contexts, which is more
+/// efficient than calling `execute` repeatedly.
+///
+/// ``` rust
+/// use expression_engine::{parse_expression_to_bytecode, execute_program, create_context, Value};
+/// let input = "x * 2 + y";
+/// let program = parse_expression_to_bytecode(input).unwrap();
+///
+/// let mut ctx = create_context!("x" => 5, "y" => 3);
+/// let result = execute_program(&program, &mut ctx).unwrap();
+/// assert_eq!(result, Value::from(13));
+/// ```
 pub fn execute_program(program: &bytecode::Program, ctx: &mut Context) -> Result<value::Value> {
+    init();
     bytecode::execute_program(program, ctx)
 }
 
@@ -321,5 +358,69 @@ mod tests {
             Error::DivByZero => (),
             _ => panic!("Expected Error::DivByZero"),
         }
+    }
+
+    #[test]
+    fn test_parse_expression_to_bytecode() {
+        let input = "a + b * 2";
+        let program = crate::parse_expression_to_bytecode(input);
+        assert!(program.is_ok());
+        let program = program.unwrap();
+        assert!(!program.instructions.is_empty());
+        assert!(!program.constants.is_empty());
+    }
+
+    #[test]
+    fn test_execute_program() {
+        let input = "x * 2 + y";
+        let program = crate::parse_expression_to_bytecode(input).unwrap();
+        let mut ctx = create_context!("x" => 5, "y" => 3);
+        let result = crate::execute_program(&program, &mut ctx).unwrap();
+        assert_eq!(result, Value::from(13));
+    }
+
+    #[test]
+    fn test_parse_and_execute_bytecode_reuse() {
+        // Test that we can compile once and execute multiple times
+        let input = "a + b * 2";
+        let program = crate::parse_expression_to_bytecode(input).unwrap();
+
+        // Execute with first context
+        let mut ctx1 = create_context!("a" => 10, "b" => 5);
+        let result1 = crate::execute_program(&program, &mut ctx1).unwrap();
+        assert_eq!(result1, Value::from(20));
+
+        // Execute with second context
+        let mut ctx2 = create_context!("a" => 1, "b" => 2);
+        let result2 = crate::execute_program(&program, &mut ctx2).unwrap();
+        assert_eq!(result2, Value::from(5));
+
+        // Execute with third context
+        let mut ctx3 = create_context!("a" => 100, "b" => 50);
+        let result3 = crate::execute_program(&program, &mut ctx3).unwrap();
+        assert_eq!(result3, Value::from(200));
+    }
+
+    #[test]
+    fn test_execute_program_with_function() {
+        let input = "f(x) + y";
+        let program = crate::parse_expression_to_bytecode(input).unwrap();
+        let mut ctx = create_context!(
+            "x" => 10,
+            "y" => 5,
+            "f" => Arc::new(|params| {
+                let val = params[0].clone().integer()?;
+                Ok(Value::from(val * 2))
+            })
+        );
+        let result = crate::execute_program(&program, &mut ctx).unwrap();
+        assert_eq!(result, Value::from(25));
+    }
+
+    #[test]
+    fn test_parse_expression_to_bytecode_invalid() {
+        let input = "a + )"; // Invalid expression - unmatched closing paren
+        let result = crate::parse_expression_to_bytecode(input);
+        assert!(result.is_err());
     }
 }
