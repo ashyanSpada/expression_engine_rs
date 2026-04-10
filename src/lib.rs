@@ -62,6 +62,16 @@ pub fn parse_expression(expr: &str) -> Result<ExprAST> {
     parser::Parser::new(expr)?.parse_stmt()
 }
 
+pub fn parse_expression_to_bytecode(expr: &str) -> Result<bytecode::Program> {
+    init();
+    let ast = parser::Parser::new(expr)?.parse_stmt()?;
+    bytecode::compile_expression(&ast)
+}
+
+pub fn execute_program(program: &bytecode::Program, ctx: &mut Context) -> Result<value::Value> {
+    bytecode::execute_program(program, ctx)
+}
+
 /// ## Usage
 ///
 /// You can register some inner functions in advance via this method
